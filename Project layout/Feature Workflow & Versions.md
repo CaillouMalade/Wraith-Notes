@@ -14,11 +14,23 @@ what each version contains. Companion to [[Wraith]] (vision),
 
 | Version | State | Contents | Tag |
 |---|---|---|---|
-| V1 (`1.0.0`) | **Ready to build** (rebrand baseline) | Writer Computer source, rebranded as Wraith, updater removed, dev/release config split. Functionally equivalent to Writer at the moment Writer was forked. | `v1.0.0` (after first build) |
+| V1 (`1.0.0`) | **Shipped** — installed at `/Applications/Wraith.app` | Writer Computer source, rebranded as Wraith, updater removed, dev/release config split. Plus two bug fixes: vite alias resolution for paths with spaces, and disabling Vite+'s pre-commit hook that blocks all commits without a `vp staged` config. Functionally equivalent to Writer at the moment Writer was forked. | `v1.0.0` |
 | V2 (`2.0.0`) | Planned — Obsidian/Tolaria compatibility layer | Obsidian callouts (`> [!important]`), `![[image.png]]` embeds, frontmatter wikilinks, old path-style link/embed resolution, image/PDF first-class browsing. See [[Wraith]] § "Observed gaps". | — |
 | V3+ | TBD | Backlinks, saved views, semantic sidebar, agent sidebar, etc. (see [[Wraith]] § "Not V0"). | — |
 
 When V2 ships, replace its row with the actual contents and add a V3 row.
+
+## What's currently in the repo vs installed
+
+The two are independent on purpose:
+
+- **Installed app at `/Applications/Wraith.app`** = the V1 binary, frozen
+  at git tag `v1.0.0`. Use this for daily notes. Doesn't update unless
+  you replace it via a new `pnpm app:build`.
+- **Source tree at `wraith_app/`** = the in-progress codebase, currently
+  identical to V1 but will diverge as V2 features land. Run via
+  `pnpm app:dev` for the dev build, which has its own isolated state at
+  `~/Library/Application Support/com.wraith.dev/`.
 
 ## Per-version setup logs
 
@@ -152,21 +164,15 @@ Solo project, single machine, optimize for clarity over ceremony.
   unless you find yourself wanting them. They're optimized for tooling
   you don't have.
 
-## What to do *right now* (since V1 isn't tagged yet)
+## V1 close-out (done 2026-05-08)
 
-The rebrand work in this conversation is sitting uncommitted in
-`wraith_app/`. To formally close out the V1 baseline:
+Recorded for posterity:
 
-1. From `Wraith Notes/` (the root, not `wraith_app/`):
-   ```bash
-   git add "Project layout/" wraith_app/
-   git commit -m "Initial Wraith V1 baseline (rebrand from Writer)"
-   ```
-2. Verify the dev loop works at least once: `cd wraith_app && pnpm install && pnpm app:dev`. Quit when the window opens cleanly.
-3. Build V1: `pnpm app:build` (the slow first compile).
-4. Install the resulting `Wraith.app` into `/Applications/`.
-5. Tag: `git tag v1.0.0`.
+1. Rebrand work committed: `de235a8 Add Wraith V1 baseline`.
+2. Two follow-up fixes committed: `eaae7eb Fix vite alias resolution on paths with spaces; disable Vite+ git hooks`.
+3. Built V1 with `pnpm app:build` from `wraith_app/`.
+4. Installed `Wraith.app` from the resulting DMG to `/Applications/`.
+5. Tagged the V1 source: `git tag v1.0.0` on commit `eaae7eb`.
 
-After that you have a real V1: source is committed, the tag exists, and
-the binary is installed for daily use. Subsequent feature work on `main`
-is V2 in progress.
+The next time you need to ship a release, follow the [Steps to ship](#steps-to-ship)
+above instead of this section. This subsection just records the V1 close-out.

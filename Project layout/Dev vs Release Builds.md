@@ -156,6 +156,62 @@ With the split:
 - Easy to confirm at a glance which is which (dock label "Wraith" vs
   "Wraith Dev").
 
+## Gotchas hit during V1 setup
+
+These are real issues we already debugged. Documented so a future agent
+session doesn't reintroduce them or re-debug from scratch.
+
+### Vite path aliases break on paths containing a space
+
+**Symptom:** `pnpm app:dev` starts, frontend errors flood in like
+`Failed to resolve import "@/lib/paths"`. Window never opens.
+
+**Cause:** Writer's original `vite.config.ts` resolved the `@` and
+`@shared` aliases via `new URL("./src", import.meta.url).pathname`.
+On paths containing a space (e.g. `Wraith Notes/`), `URL.pathname`
+URL-encodes the space as `%20`, so the alias resolves to a directory
+that doesn't exist on disk.
+
+**Fix (already applied at `apps/desktop/vite.config.ts`):**
+
+```ts
+import { fileURLToPath } from "node:url";
+
+resolve: {
+  alias: {
+    "@": fileURLToPath(new URL("./src", import.meta.url)),
+    "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
+  },
+},
+```
+
+Don't revert to `URL.pathname` even if a Writer upstream merge brings it
+back. The fix is correct and would still work if the project ever moves
+back to a space-free path.
+
+### Vite+ pre-commit hook blocks every commit
+
+**Symptom:** Any `git commit` (terminal or VS Code git UI) errors with
+"VITE+ - The Unified Toolchain for the Web" and message
+"Please add a staged config:".
+
+**Cause:** Writer's root `package.json` had a `"prepare": "vp config"`
+script. `pnpm install` runs `prepare`, which sets `core.hooksPath` to
+`.vite-hooks/_` and installs a pre-commit hook running `vp staged`. That
+in turn requires a `vp staged` config Wraith doesn't have.
+
+**Fix (already applied):**
+
+- The `prepare` script was removed from `wraith_app/package.json`.
+- `core.hooksPath` was unset via `git config --unset core.hooksPath`.
+
+**If you ever want it back:** `pnpm exec vp config` re-installs the hook,
+but you must also configure `vp staged` first (Vite+ docs) so the hook
+script doesn't error out and block commits.
+
+**Note:** the `.vite-hooks/` directory is still in the repo (came from
+Writer). It's harmless dead weight as long as `core.hooksPath` is unset.
+
 ## Future work
 
 - A pre-release sanity check script that verifies `tauri.conf.json` has
