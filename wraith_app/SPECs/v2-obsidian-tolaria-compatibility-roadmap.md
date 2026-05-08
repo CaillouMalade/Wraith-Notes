@@ -1,14 +1,161 @@
-# V2 Obsidian/Tolaria Compatibility Roadmap + Spec
+# Wraith Product Roadmap + V2 Compatibility Spec
 
 ## Status
 
-Roadmap/spec for discussion. Do not implement from this document until Arthur accepts the scope and milestone order.
+Roadmap/spec for discussion. Do not implement from this document until Arthur accepts the product scope, chronological order, and version split.
 
-This document replaces the loose V2 roadmap with a precise compatibility contract. It is still not a bite-sized implementation plan. After acceptance, convert one milestone at a time into implementation tasks.
+This document is the working surface for defining the whole current Wraith roadmap first, then grouping functionality into buckets, then ordering the buckets chronologically, then splitting them into versioned releases/milestones.
+
+Current session goal: list all roadmap items only. Do not inspect source-code complexity yet. After the item inventory feels complete, start a fresh session to define product iterations using complexity and availability in Wraith/Tolaria/source-code references.
+
+The detailed V2 Obsidian/Tolaria compatibility material below remains valid, but V2 is no longer assumed to be the whole Wraith roadmap. After the roadmap is accepted, convert one milestone at a time into implementation tasks.
 
 ## One-Line Goal
 
-Make Wraith usable as Arthur's daily local vault app by making the existing folder-first Markdown editor understand the Obsidian/Tolaria-style syntax already present in real notes, without migrating files or turning Wraith into a database app.
+Make Wraith Arthur's daily local vault app: a fast files-first Markdown workspace that preserves plain Markdown as source of truth, keeps the current editor/file-browser/search strengths, fixes missing media/compatibility gaps, and can later grow toward Tolaria-style sync/publishing and optional agent/terminal workflows without becoming a database app.
+
+## Current Functionality Inventory
+
+This section captures Arthur's stated wants/needs before chronological ordering or version splitting. Keep unresolved items marked until Arthur decides.
+
+### Already Working / Preserve
+
+- Markdown editing and reading already work and should not be reinvented.
+- Body wikilinks already work and should be preserved while improving resolver consistency where needed.
+- Mermaid diagrams already work and should be preserved.
+- YAML frontmatter already works and should be preserved, especially avoiding unintended rewrites.
+- Search/navigation is considered excellent; no major roadmap work needed now.
+- Existing file/folder browser is considered great; only targeted missing behavior should be added.
+
+### Missing / Wanted Functionality
+
+- Media inside Markdown files:
+  - view images referenced from Markdown files;
+  - support Obsidian/Tolaria-style image embeds/links;
+  - preserve Markdown source while rendering images usefully.
+- Asset/media handling has several distinct layers:
+  - show supported assets in the file explorer;
+  - embed/render supported media inside Markdown files;
+  - view/open images as files;
+  - view/open PDFs as files.
+- Media priority order:
+  1. Inline images in Markdown notes are the most important next media behavior.
+  2. Drag/drop external files into the vault is very useful and has two important target behaviors:
+     - dropping pictures into the currently open note should copy the image into a root-level `attachments/` folder and insert an image embed/link at the cursor;
+     - dropping files into the folder tree should copy the note/image/any file type into the targeted folder without editing the current note.
+  3. Showing other supported file types in the sidebar is very useful and expected to be comparatively easy.
+  4. PDFs linked from notes are less crucial because Arthur's agents often make Markdown versions of PDFs, but PDF opening/viewing is still a needed asset behavior.
+- Do not treat "Obsidian compatibility" as a standalone product checklist. The roadmap is defined by Arthur's concrete Wraith specs and real vault needs; Obsidian/Tolaria only matter where they name a useful behavior Wraith should support.
+- File browser/vault management is mostly already good:
+  - live folder-tree reading works;
+  - dynamic add/update works;
+  - opening multiple tabs/windows in the app works;
+  - Reveal in Finder works;
+  - Copy Relative Path works;
+  - Copy Absolute Path works;
+  - rename note/file works;
+  - delete file/folder works;
+  - create new note works;
+  - create new folder works;
+  - duplicate file works;
+  - open containing folder works;
+  - filesystem changes are handled with a refresh option.
+- File browser/vault management missing/needed pieces are targeted:
+  - supported non-Markdown files such as images/PDFs are not visible in the file viewer/sidebar yet;
+  - the settings UI has File Associations for workspace include patterns (`*.md`, `*.mdx`, `*.markdown` shown), but this likely currently supports Markdown/text inclusion more than first-class asset visibility;
+  - PDF opening/viewing is not working and is needed;
+  - dragging/dropping external files into the vault/tree to copy/import them is needed; source-code inspection should later determine implementation difficulty and exact sequencing;
+  - no other small file-browser/vault-management gaps are currently known beyond asset visibility/opening, PDF opening/viewing, external drag/drop import, and hotkeys.
+- File browser/vault management later/not-needed items:
+  - read-only image file tabs are later, not now;
+  - moving files by drag/drop within the tree is later;
+  - dragging/dropping folders into the file tree does not work, but is not needed for now because folders can be created from the UI;
+  - sorting is not needed beyond existing behavior;
+  - recent files / quick reopen is not needed;
+  - multi-select files is not needed.
+- Hotkey customization is needed. Wraith already has hotkey support, and Arthur knows the shortcut set he wants. A hardcoded shortcut pass is acceptable if it is much easier, because the command list is not very long; a Settings pane for editable shortcuts is preferred if straightforward.
+- Markdown/editor compatibility decisions:
+  - Obsidian callouts are not needed yet.
+  - Frontmatter wikilinks displayed as clickable chips/links are very good to have, but not a priority.
+  - Heading fragment scrolling is not important now; heading navigation may come later as file-heading navigation in the sidebar.
+  - Embedding/transcluding another note inline is not needed; wikilinks are enough for note-to-note relationships.
+  - Tolaria-style embeds for files/assets are the preferred reference behavior for file embeds.
+  - Block references are not needed.
+  - Markdown tables already work well and do not need roadmap work now.
+  - Task checkboxes are not important now.
+  - Tags are not needed for now.
+  - LaTeX/math rendering is very good to have and is not working right now.
+  - Audio/video embeds are not needed.
+  - HTML blocks appear to already render; no major roadmap work unless later testing shows a real gap.
+  - Footnotes are not needed.
+- Visual design and fluidity are extremely important:
+  - V1's look/feel is considered perfect and should remain the design anchor;
+  - the app should look beautiful and feel smooth/fluid;
+  - the design language must not drift away from V1;
+  - existing theme controls such as accent colors and background transparency should remain and govern the whole UI consistently;
+  - current theme settings are considered perfect as-is.
+- Layout/end-state shell:
+  - left sidebar remains for folders and notes;
+  - center panel is for files and should stay very clean;
+  - center panel should support two side-by-side split tabs/panes, similar to Obsidian;
+  - right sidebar should visually match the current left sidebar language;
+  - left sidebar, right sidebar, and split center panes should be resizable;
+  - focus mode is not needed because collapsing left/right sidebars is enough.
+- Right sidebar and split panes are core product architecture for the end-state roadmap, not optional decoration. They become essential as soon as AI embedding exists, because AI workflows need a persistent side surface while notes stay open in the center.
+- Future right-sidebar functions:
+  - terminal, natively opened at the vault root;
+  - high-value Tolaria-style AI sidepanel/chatbot interface, very similar to Tolaria's model, that sends chats to CLI agents underneath;
+  - the AI/chat surface can partially replace bespoke UI features because Arthur can ask the agent to git commit, pull, refresh, add files, and perform other vault actions;
+  - properties panel, similar to Tolaria but simpler;
+  - table of contents / file heading navigation;
+  - graph view.
+- When iterating the right sidebar, lead with the AI sidepanel/chat/terminal workflow Arthur described; other sidebar surfaces can follow once the shell exists.
+- Properties/YAML end state:
+  - nice-looking UI for properties/YAML;
+  - wikilinks should work in YAML/properties;
+  - relative paths in YAML/properties are also acceptable; Arthur does not strongly prefer wikilinks over relative paths there.
+- AI/agent features are later, not now:
+  - right-sidebar terminal/chatbot as above;
+  - longer-term command to invoke AI in the background, using a CLI-agent `-p` style command such as Claude Code, to directly write into the current note.
+- Graph view is eventually interesting, but not now.
+- Backlinks are not needed as a Wraith product feature. If backlink behavior becomes useful later for graph/navigation plumbing, borrow the approach from Tolaria rather than designing a new standalone backlinks surface.
+- Templates are not needed.
+- Command palette is good enough as-is for now.
+- Font/settings decisions:
+  - current font picker exists;
+  - editor/file font and UI font may eventually be split;
+  - UI font should probably stay fixed to the current one to avoid visual issues.
+- Existing editor ergonomics to preserve:
+  - word count already exists;
+  - line wrap already exists;
+  - spellcheck as-is from V1 is good enough.
+- Explicit editor/product non-goals for now:
+  - Vim mode is not needed;
+  - import/export is not needed for now;
+  - footnotes are not needed;
+  - rendered rich cards are not needed; HTML block rendering plus image embeds are enough.
+- Sync, Git, and publishing are definitely on the roadmap. Arthur will keep using other apps until Git functionality exists, so this is a major future Wraith capability, not a parking-lot idea. It does not need to ship immediately. Desired behavior is the same as Tolaria's Git/sync/publishing behavior, with Wraith UI/architecture adaptation rather than blind porting. This bucket requires a later source-code/reference pass against Tolaria to inventory exact behaviors before version splitting.
+- Mobile/web apps are out of scope. Exposing Wraith on localhost is a real fun later idea/experiment: standalone desktop app when wanted, browser-hosted app when working alongside other browser-based work.
+
+### Initial Buckets To Order Later
+
+1. Preserve core editor/search/file-browser/design strengths.
+2. Markdown media rendering and Tolaria-style image/file embed behavior.
+3. Asset visibility/opening for images and PDFs.
+4. Targeted vault/file-browser polish.
+5. Hotkey and keyboard workflow refinement.
+6. Core layout evolution: right sidebar, resizable panes, and split center tabs.
+7. High-value Tolaria-style AI sidebar/terminal/chat workflow.
+8. Properties/YAML UI and frontmatter relationship display.
+9. Markdown compatibility extras: LaTeX/math.
+10. Tolaria-inspired sync/Git/publishing.
+11. Optional graph exploration; backlinks only if needed as Tolaria-derived support plumbing.
+12. Optional localhost/browser experiment.
+
+### Deferred Sequencing Questions For Source Inspection Session
+
+- Decide whether asset browsing/opening ships before, with, or after inline Markdown media rendering after inspecting Wraith and Tolaria source complexity.
+  - Current product leaning: inline images first; drag/drop image import into open notes and drag/drop file import into the folder tree are also high-value; showing supported assets in sidebar is also high-value; PDF viewing/opening is useful but less urgent.
 
 ## Product Contract
 
