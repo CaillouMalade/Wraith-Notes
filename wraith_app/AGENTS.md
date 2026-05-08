@@ -1,183 +1,105 @@
 ---
-title: AGENTS
+title: Wraith Agent Guide
 ---
 
-Writer is a Tauri v2 desktop markdown editor: React frontend + Rust backend. It targets writers who use local-first plain-text workflows (Obsidian vaults, docs repos, personal wikis).
+# Wraith Agent Guide
 
-## This File
+Wraith is the active app. It is a local-first Tauri v2 desktop Markdown vault app: React/TypeScript frontend, Rust/Tauri backend, files-first storage.
 
-This is an **agent router**: concise context loaded every session. It routes the agent to relevant docs based on task intent. Deep guidelines, system rules, and review rubrics live in linked docs — not here.
+## Project Boundary
 
-## Architecture (Brief)
+- Active source: this directory, `wraith_app/`.
+- Reference only: `../writer_source_code/` and `../tolaria_source_code_ref_only/`.
+- Tolaria is an important feature reference for Wraith V2. Inspect it when useful, but do not edit it unless Arthur explicitly asks.
+- Writer Computer is the upstream baseline/reference. Do not edit it unless Arthur explicitly asks.
+- Planning notes live in `../Project layout/`.
 
-Stack: Tauri v2 (React + Rust)
-Frontend: `apps/desktop/src/` — React, Zustand stores, CodeMirror/Prosemark editor
-Backend: `apps/desktop/src-tauri/src/` — Rust IPC commands, file watcher, workspace state
-Toolchain: Vite+ (`vp`) — see [docs/vite-plus.md](./docs/vite-plus.md)
+## Current State
 
-Rust source structure:
+- V1 is shipped, tagged `v1.0.0`, and installed at `/Applications/Wraith.app`.
+- Current source may be ahead of V1 as V2 work begins.
+- Main next focus: V2 Obsidian/Tolaria compatibility while keeping Writer's simple folder-first model.
 
-- `lib.rs` — app setup, plugin registration, command registration
-- `state.rs` — global app state (workspace root, file index, watcher handle)
-- `error.rs` — error types serialized over IPC
-- `watcher.rs` — file system watcher with debounce and self-write detection
-- `commands/` — Tauri IPC handlers: `fs.rs`, `workspace.rs`, `search.rs`, `images.rs`
+## Core Principle
 
-## Docs Index
+Files first, app second. Markdown files and their frontmatter are the source of truth. Wraith should read, display, edit, and preserve the vault without forcing a database-shaped model onto it.
 
-All docs except CLAUDE.md, AGENTS.md, TODOS.md, and CHANGELOG.md live in `./docs/`. Feature specs live in `./SPECs/`.
+For Markdown UX, keep one predictable editor surface. Do not add hidden editor/viewer swaps, confusing global raw/preview modes, or behavior that makes Arthur unsure whether he is editing source or viewing a separate representation.
 
-**Workflow**
+## Architecture
 
-- [docs/workflows/agent-loop.md](./docs/workflows/agent-loop.md) — repeatable autonomous task execution loop
-- [docs/workflows/agent-review.md](./docs/workflows/agent-review.md) — review personas, findings format, quality checklist, escalation rules
-- [docs/workflows/worktrees.md](./docs/workflows/worktrees.md) — creating and managing parallel worktrees
+- Frontend: `apps/desktop/src/`
+  - React, TypeScript, Zustand stores, CodeMirror/Prosemark editor surface.
+  - Editor/UI components: `apps/desktop/src/components/`.
+  - Shared frontend utilities: `apps/desktop/src/lib/` and `apps/desktop/src/hooks/`.
+- Backend: `apps/desktop/src-tauri/src/`
+  - Tauri IPC commands, workspace state, file watching, path handling, shell/CLI integration.
+  - Command handlers: `apps/desktop/src-tauri/src/commands/`.
+- Specs: `SPECs/`.
+- Inherited docs: `docs/`. Useful, but many still describe Writer. Update or supersede them when Wraith behavior diverges.
 
-**Guidelines**
+## Commands
 
-- [docs/consolidation.md](./docs/consolidation.md) — if adding the next case touches more than one file, the structure is wrong: single source of truth, side-effect ownership, registry over per-case branches, one write path
-- [docs/react-guidelines.md](./docs/react-guidelines.md) — imports, state, side effects, component structure, persistence
-- [docs/zustand.md](./docs/zustand.md) — side effect timing, selectors, bail-out patterns
-- [docs/codemirror.md](./docs/codemirror.md) — layout-model APIs over rendered DOM, picking the right scroll API
-- [docs/vite-plus.md](./docs/vite-plus.md) — `vp` CLI usage and common pitfalls
-- [docs/keyboard-shortcuts.md](./docs/keyboard-shortcuts.md) — canonical shortcut map
+Run from this directory unless noted:
 
-**Infra**
+```bash
+pnpm app:dev      # real native dev loop, Wraith Dev, com.wraith.dev
+pnpm app:build    # release build, Wraith, com.wraith
+pnpm --filter desktop run build
+```
 
-- [docs/releasing.md](./docs/releasing.md) — how to cut a signed, notarized macOS release
-- [docs/website-deploy.md](./docs/website-deploy.md) — how to deploy the marketing website to Cloudflare Workers
+Rust checks:
 
-**Cross-cutting**
+```bash
+cd apps/desktop/src-tauri
+cargo test
+cargo clippy
+cargo fmt --check
+```
 
-- [TODOS.md](./TODOS.md) — task backlog and work-in-progress tracking
-- [CHANGELOG.md](./CHANGELOG.md) — user-visible changes log
-- [SPECs/](./SPECs/) — human-written feature and bug specs
+Notes:
+
+- `pnpm dev` is frontend/Vite only. Use `pnpm app:dev` for real app behavior.
+- `pnpm app:dev` depends on `apps/desktop/package.json` preserving `tauri:dev` with `--config src-tauri/tauri.conf.dev.json`.
+- Do not re-add the inherited `prepare: vp config` hook unless Wraith intentionally adopts and configures Vite+ staged hooks.
 
 ## Hard Rules
 
-- Check [`TODOS.md`](./TODOS.md) before starting work to see current tasks.
-- Move tasks between sections (Up Next → In Progress → Done) as you work.
-- For non-trivial work, create a spec in [`SPECs/`](./SPECs/) and link it from the task.
-- Update [`CHANGELOG.md`](./CHANGELOG.md) when completing work.
-- Load only docs relevant to the current task and scope.
-- If a behavior or rule changes in practice, update the owning doc in the same task.
-- In autonomous/loop mode, complete exactly one task at a time and commit immediately. Do not batch unless the user explicitly asks.
-- When coding or reviewing, follow the Engineering Guardrails below and the guidelines in linked docs.
+- Check `git status` before editing.
+- Preserve user work and keep changes small/reversible.
+- For non-trivial features, create or update a spec in `SPECs/` before coding.
+- Update `CHANGELOG.md` when completing user-visible Wraith work.
+- Do not silently alter Markdown/frontmatter formatting. Round-trip preservation matters.
+- Do not collapse dev and release identifiers. `com.wraith.dev` and `com.wraith` must stay isolated.
+- Do not restore Writer's updater configuration unless Wraith has its own release pipeline.
+- Do not follow Tolaria/Laputa Todoist, CodeScene, Codacy, branch, or push workflow for Wraith unless Arthur explicitly says to.
 
-## Engineering Guardrails
+## V2 Roadmap Frame
 
-- Prefer the smallest change that is correct, robust, and easy to reason about.
-- Avoid fragile logic, hidden coupling, edge-case traps, and assumptions about incidental execution order.
-- Keep async flows and shared state race-safe. Use explicit sequencing, cancellation, idempotency, or clear ownership where needed.
-- Do not introduce unnecessary performance regressions. Avoid extra renders, allocations, subscriptions, scans, blocking work, or I/O unless clearly justified.
-- Fail explicitly. Surface invalid states and unexpected errors clearly instead of silently swallowing them or masking them with fallback behavior.
-- Preserve testability. Keep side effects at the boundaries, make dependencies explicit, and structure logic so it can be exercised in isolation when practical.
-- Maintain clear boundaries, but prefer minimal designs. Split functions, hooks, or modules when responsibilities meaningfully diverge, not as a reflex.
-- If a tradeoff is unavoidable, call it out explicitly and choose the option with the lowest long-term correctness and maintenance risk.
-- When a fix doesn't work after one iteration, add a debug log before changing the approach again. Don't iterate on guesses — let the runtime tell you which term in the math is wrong.
+Before implementation, refine `SPECs/v2-obsidian-tolaria-compatibility-roadmap.md`. Keep V2 focused on compatibility, not a broad product rewrite.
 
-## Validation
+Likely V2 sequence:
 
-Frontend:
+1. Shared vault path/link/asset resolver.
+2. Obsidian image embeds: `![[image.png]]` and path-style variants.
+3. First-class image/PDF browsing or opening.
+4. Obsidian callouts: `> [!important]`, `> [!note]`, etc.
+5. Frontmatter wikilinks that display/navigate cleanly while preserving raw files.
+6. QA pass against Arthur's real vault patterns.
 
-- `vp check` — format, lint, and TypeScript type checks
-- `vp test` — JavaScript/TypeScript tests
+Useful Tolaria reference areas:
 
-Rust (from `apps/desktop/src-tauri/`):
+- `../tolaria_source_code_ref_only/src/utils/wikilink*.ts`
+- `../tolaria_source_code_ref_only/src/utils/vaultImages.ts`
+- `../tolaria_source_code_ref_only/src/utils/vaultAttachments.ts`
+- `../tolaria_source_code_ref_only/src/utils/*Markdown.ts`
+- `../tolaria_source_code_ref_only/src-tauri/src/vault/frontmatter.rs`
+- `../tolaria_source_code_ref_only/src-tauri/src/vault/image.rs`
+- `../tolaria_source_code_ref_only/src-tauri/src/vault/parsing.rs`
+- `../tolaria_source_code_ref_only/src-tauri/src/frontmatter/`
 
-- `cargo test`
-- `cargo clippy`
-- `cargo fmt --check`
+## Known Gotchas From V1 Setup
 
-## Session Wrap
-
-Wrap per [agent-loop.md](./docs/workflows/agent-loop.md). One commit per completed task with a clear message. See the existing commit history for style.
-
-<!--VITE PLUS START-->
-
-# Using Vite+, the Unified Toolchain for the Web
-
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, but it invokes Vite through `vp dev` and `vp build`.
-
-## Vite+ Workflow
-
-`vp` is a global binary that handles the full development lifecycle. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
-
-### Start
-
-- create - Create a new project from a template
-- migrate - Migrate an existing project to Vite+
-- config - Configure hooks and agent integration
-- staged - Run linters on staged files
-- install (`i`) - Install dependencies
-- env - Manage Node.js versions
-
-### Develop
-
-- dev - Run the development server
-- check - Run format, lint, and TypeScript type checks
-- lint - Lint code
-- fmt - Format code
-- test - Run tests
-
-### Execute
-
-- run - Run monorepo tasks
-- exec - Execute a command from local `node_modules/.bin`
-- dlx - Execute a package binary without installing it as a dependency
-- cache - Manage the task cache
-
-### Build
-
-- build - Build for production
-- pack - Build libraries
-- preview - Preview production build
-
-### Manage Dependencies
-
-Vite+ automatically detects and wraps the underlying package manager such as pnpm, npm, or Yarn through the `packageManager` field in `package.json` or package manager-specific lockfiles.
-
-- add - Add packages to dependencies
-- remove (`rm`, `un`, `uninstall`) - Remove packages from dependencies
-- update (`up`) - Update packages to latest versions
-- dedupe - Deduplicate dependencies
-- outdated - Check for outdated packages
-- list (`ls`) - List installed packages
-- why (`explain`) - Show why a package is installed
-- info (`view`, `show`) - View package information from the registry
-- link (`ln`) / unlink - Manage local package links
-- pm - Forward a command to the package manager
-
-### Maintain
-
-- upgrade - Update `vp` itself to the latest version
-
-These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
-
-## Common Pitfalls
-
-- **Using the package manager directly:** Do not use pnpm, npm, or Yarn directly. Vite+ can handle all package manager operations.
-- **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp test` and `vp lint` instead.
-- **Running scripts:** Vite+ built-in commands (`vp dev`, `vp build`, `vp test`, etc.) always run the Vite+ built-in tool, not any `package.json` script of the same name. To run a custom script that shares a name with a built-in command, use `vp run <script>`. For example, if you have a custom `dev` script that runs multiple services concurrently, run it with `vp run dev`, not `vp dev` (which always starts Vite's dev server).
-- **Do not install Vitest, Oxlint, Oxfmt, or tsdown directly:** Vite+ wraps these tools. They must not be installed directly. You cannot upgrade these tools by installing their latest versions. Always use Vite+ commands.
-- **Use Vite+ wrappers for one-off binaries:** Use `vp dlx` instead of package-manager-specific `dlx`/`npx` commands.
-- **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
-- **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
-
-## CI Integration
-
-For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/voidzero-dev/setup-vp) to replace separate `actions/setup-node`, package-manager setup, cache, and install steps with a single action.
-
-```yaml
-- uses: voidzero-dev/setup-vp@v1
-  with:
-    cache: true
-- run: vp check
-- run: vp test
-```
-
-## Review Checklist for Agents
-
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to validate changes.
-<!--VITE PLUS END-->
+- Paths containing spaces broke Writer's old Vite aliases when using `new URL(...).pathname`. Keep `fileURLToPath(new URL(...))` in `apps/desktop/vite.config.ts`.
+- Vite+ pre-commit hooks blocked commits without staged config. Wraith removed the root `prepare` script and unset `core.hooksPath`. Do not reintroduce this casually.
+- `CLAUDE.md` is a symlink to this file. Keep shared agent guidance here.
