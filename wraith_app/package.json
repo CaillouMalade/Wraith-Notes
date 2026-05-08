@@ -8,7 +8,6 @@
     "dev": "vp run desktop#dev",
     "app:dev": "pnpm --filter desktop run tauri:dev",
     "app:build": "pnpm --filter desktop run tauri:build",
-    "prepare": "vp config",
     "distribute": "./scripts/distribute.sh"
   },
   "devDependencies": {
