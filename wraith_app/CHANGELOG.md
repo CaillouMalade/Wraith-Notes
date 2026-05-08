@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-08
+
+- Replace the app icon with the Shroud ghost mark (cream squircle, dark gradient ghost). Regenerated the full Tauri icon set (macOS `.icns`, Windows `.ico`, PNG sizes, iOS AppIcon, Android mipmaps) from a 1024×1024 source at `apps/desktop/src-tauri/icons/source.png`. Replaced the in-app favicon (`public/vite.svg` → `public/wraith-icon.png`) and updated `index.html`.
+
 ## 2026-05-07
 
 - Fix the editor scroll jumping on every keystroke after the Cmd+F polish landed. The custom `EditorView.scrollHandler` was firing for any scroll-into-view (including CodeMirror's default cursor tracking on typing) and unconditionally re-positioning the cursor at the safe-zone top. Now gated by a `searchScrollIntent` `StateField` that only flips on for transactions tagged `select.search` (find next/previous, jump-to-match) or `input.replace` (replace next/all), and the handler only nudges the scroll when the match's line is actually outside the safe zone — typing and ordinary cursor moves fall through to CodeMirror's default scroll, and stepping between already-visible matches no longer jumps.
