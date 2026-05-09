@@ -51,7 +51,7 @@ function normalizeAgentProfile(value: unknown, index: number): AgentProfile | nu
   const displayName =
     typeof raw.displayName === "string" ? raw.displayName.trim() : name;
   const command = typeof raw.command === "string" ? raw.command.trim() : "";
-  if (!displayName || !command) return null;
+  if (!displayName) return null;
 
   return {
     id:

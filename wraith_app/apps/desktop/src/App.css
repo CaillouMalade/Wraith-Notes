@@ -302,6 +302,16 @@ input {
   background: var(--surface-selected);
 }
 
+.right-sidebar-button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.right-sidebar-button-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 84%, white);
+}
+
 .right-sidebar-button:disabled {
   opacity: 0.5;
 }

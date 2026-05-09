@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -178,19 +179,370 @@ fn resolve_agent_working_directory(
     Ok(resolved)
 }
 
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .filter(|home| !home.is_empty())
+        .map(PathBuf::from)
+}
+
+fn expand_tilde_path(input: &str) -> PathBuf {
+    if input == "~" {
+        return home_dir().unwrap_or_else(|| PathBuf::from(input));
+    }
+
+    if let Some(rest) = input.strip_prefix("~/") {
+        if let Some(home) = home_dir() {
+            return home.join(rest);
+        }
+    }
+
+    PathBuf::from(input)
+}
+
+fn has_path_separator(program: &str) -> bool {
+    program.contains('/') || program.contains('\\')
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::metadata(path)
+            .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+
+    #[cfg(windows)]
+    {
+        path.is_file()
+            && path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    ["bat", "cmd", "com", "exe"]
+                        .iter()
+                        .any(|expected| extension.eq_ignore_ascii_case(expected))
+                })
+    }
+
+    #[cfg(all(not(unix), not(windows)))]
+    {
+        path.is_file()
+    }
+}
+
+fn first_existing_executable_path(stdout: &str) -> Option<PathBuf> {
+    stdout.lines().find_map(|line| {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let candidate = PathBuf::from(trimmed);
+        is_executable_file(&candidate).then_some(candidate)
+    })
+}
+
+fn path_from_successful_output(output: &std::process::Output) -> Option<PathBuf> {
+    if output.status.success() {
+        first_existing_executable_path(&String::from_utf8_lossy(&output.stdout))
+    } else {
+        None
+    }
+}
+
+fn path_lookup_command() -> &'static str {
+    if cfg!(windows) {
+        "where"
+    } else {
+        "which"
+    }
+}
+
+fn find_agent_program_on_path(program: &str) -> Option<PathBuf> {
+    Command::new(path_lookup_command())
+        .arg(program)
+        .output()
+        .ok()
+        .and_then(|output| path_from_successful_output(&output))
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+#[cfg(not(windows))]
+fn user_shell_candidates() -> Vec<PathBuf> {
+    let mut shells = Vec::new();
+    if let Some(shell) = std::env::var_os("SHELL") {
+        if !shell.is_empty() {
+            shells.push(PathBuf::from(shell));
+        }
+    }
+    shells.push(PathBuf::from("/bin/zsh"));
+    shells.push(PathBuf::from("/bin/bash"));
+    shells
+}
+
+#[cfg(not(windows))]
+fn find_agent_program_in_user_shell(program: &str) -> Option<PathBuf> {
+    user_shell_candidates()
+        .into_iter()
+        .filter(|shell| shell.exists())
+        .find_map(|shell| {
+            Command::new(shell)
+                .arg("-lc")
+                .arg(format!("command -v {}", shell_quote(program)))
+                .output()
+                .ok()
+                .and_then(|output| path_from_successful_output(&output))
+        })
+}
+
+#[cfg(windows)]
+fn find_agent_program_in_user_shell(_program: &str) -> Option<PathBuf> {
+    None
+}
+
+fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
+    if candidate.as_os_str().is_empty() {
+        return;
+    }
+    if paths.iter().any(|path| path == &candidate) {
+        return;
+    }
+    paths.push(candidate);
+}
+
+fn nvm_binary_candidates_for_home(home: &Path, program: &str) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(home.join(".nvm/versions/node")) else {
+        return Vec::new();
+    };
+
+    let mut candidates = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .map(|path| path.join("bin").join(program))
+        .collect::<Vec<_>>();
+    candidates.sort();
+    candidates
+}
+
+fn agent_path_candidates(binary: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(parent) = binary
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        candidates.push(parent.to_path_buf());
+    }
+
+    if let Some(home) = home_dir() {
+        candidates.extend([
+            home.join(".local/bin"),
+            home.join(".claude/local"),
+            home.join(".codex/bin"),
+            home.join(".local/share/mise/shims"),
+            home.join(".asdf/shims"),
+            home.join(".npm-global/bin"),
+            home.join(".npm/bin"),
+            home.join(".bun/bin"),
+            home.join(".linuxbrew/bin"),
+            home.join("AppData/Roaming/npm"),
+            home.join("AppData/Local/pnpm"),
+            home.join("scoop/shims"),
+        ]);
+    }
+
+    candidates.extend([
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/home/linuxbrew/.linuxbrew/bin"),
+    ]);
+
+    candidates
+}
+
+fn expanded_agent_path(binary: &Path) -> Option<OsString> {
+    let mut paths = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .unwrap_or_default();
+
+    for candidate in agent_path_candidates(binary) {
+        push_unique_path(&mut paths, candidate);
+    }
+
+    std::env::join_paths(paths).ok()
+}
+
+fn configure_agent_command_environment(command: &mut Command, binary: &Path) {
+    if let Some(path) = expanded_agent_path(binary) {
+        command.env("PATH", path);
+    }
+}
+
+fn agent_program_names(program: &str) -> Vec<String> {
+    #[cfg(windows)]
+    {
+        let mut names = vec![program.to_string()];
+        let lower = program.to_ascii_lowercase();
+        if ![".exe", ".cmd", ".bat", ".com"]
+            .iter()
+            .any(|extension| lower.ends_with(extension))
+        {
+            names.extend([
+                format!("{program}.exe"),
+                format!("{program}.cmd"),
+                format!("{program}.bat"),
+            ]);
+        }
+        names
+    }
+
+    #[cfg(not(windows))]
+    {
+        vec![program.to_string()]
+    }
+}
+
+fn agent_program_candidates(program: &str) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    let names = agent_program_names(program);
+
+    if let Some(home) = home_dir() {
+        let dirs = [
+            home.join(".local/bin"),
+            home.join(".claude/local"),
+            home.join(".codex/bin"),
+            home.join(".local/share/mise/shims"),
+            home.join(".asdf/shims"),
+            home.join(".npm-global/bin"),
+            home.join(".npm/bin"),
+            home.join(".bun/bin"),
+            home.join(".linuxbrew/bin"),
+            home.join("AppData/Roaming/npm"),
+            home.join("AppData/Local/pnpm"),
+            home.join("scoop/shims"),
+        ];
+
+        for dir in dirs {
+            for name in &names {
+                candidates.push(dir.join(name));
+            }
+        }
+
+        for nvm_candidate in nvm_binary_candidates_for_home(&home, program) {
+            candidates.push(nvm_candidate);
+        }
+    }
+
+    let system_dirs = [
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/home/linuxbrew/.linuxbrew/bin"),
+    ];
+
+    for dir in system_dirs {
+        for name in &names {
+            candidates.push(dir.join(name));
+        }
+    }
+
+    candidates
+}
+
+fn find_executable_agent_candidate(program: &str) -> Result<Option<PathBuf>, AppError> {
+    let mut first_unusable_candidate = None;
+
+    for candidate in agent_program_candidates(program) {
+        if !candidate.exists() {
+            continue;
+        }
+
+        if is_executable_file(&candidate) {
+            return Ok(Some(candidate));
+        }
+
+        if first_unusable_candidate.is_none() {
+            first_unusable_candidate = Some(candidate);
+        }
+    }
+
+    if let Some(candidate) = first_unusable_candidate {
+        return Err(AppError::Io(format!(
+            "Agent command found at {} but it is not executable. Fix the file permissions or set an absolute executable path in Settings.",
+            candidate.display()
+        )));
+    }
+
+    Ok(None)
+}
+
+fn resolve_agent_program(program: &str) -> Result<PathBuf, AppError> {
+    validate_agent_program(program)?;
+
+    let program = program.trim();
+    if has_path_separator(program) {
+        let candidate = expand_tilde_path(program);
+        if is_executable_file(&candidate) {
+            return Ok(candidate);
+        }
+        if candidate.exists() {
+            return Err(AppError::Io(format!(
+                "Agent command is not executable: {}",
+                candidate.display()
+            )));
+        }
+        return Err(AppError::Io(format!(
+            "Agent command does not exist: {}",
+            candidate.display()
+        )));
+    }
+
+    if let Some(path) = find_agent_program_on_path(program) {
+        return Ok(path);
+    }
+
+    if let Some(path) = find_agent_program_in_user_shell(program) {
+        return Ok(path);
+    }
+
+    if let Some(path) = find_executable_agent_candidate(program)? {
+        return Ok(path);
+    }
+
+    Err(AppError::Io(format!(
+        "Agent command not found: {program}. Wraith checked the app PATH, your login shell, Homebrew, npm, mise/asdf, nvm, and common user CLI shim directories. If it works in Terminal, restart Wraith or set an absolute command path in Settings."
+    )))
+}
+
+fn format_agent_spawn_error(program: &str, error: &std::io::Error) -> AppError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return AppError::Io(format!(
+            "Failed to start {program}: the CLI or one of its runtime dependencies was not found. If it was installed with Homebrew or npm, make sure its install directory is available, then restart Wraith. Details: {error}"
+        ));
+    }
+
+    AppError::Io(format!("Failed to spawn {program}: {error}"))
+}
+
 fn run_agent_program(
     workspace: PathBuf,
     program: String,
     args: Vec<String>,
     prompt: String,
 ) -> Result<CommandOutput, AppError> {
-    validate_agent_program(&program)?;
+    let program_path = resolve_agent_program(&program)?;
 
-    let output = Command::new(program)
+    let mut command = Command::new(&program_path);
+    configure_agent_command_environment(&mut command, &program_path);
+    let output = command
         .args(build_agent_args(args, prompt))
         .current_dir(workspace)
         .output()
-        .map_err(|e| AppError::Io(e.to_string()))?;
+        .map_err(|e| format_agent_spawn_error(&program, &e))?;
 
     Ok(CommandOutput {
         status: output.status.code().unwrap_or(-1),
@@ -556,18 +908,20 @@ pub async fn agent_start(
     let label = webview.label().to_string();
     let app_for_spawn = app.clone();
     blocking(move || {
-        validate_agent_program(&program)?;
+        let program_path = resolve_agent_program(&program)?;
         if agents().lock().contains_key(&id) {
             return Err(AppError::AlreadyExists(format!("agent session {id}")));
         }
 
-        let mut child = Command::new(program)
+        let mut command = Command::new(&program_path);
+        configure_agent_command_environment(&mut command, &program_path);
+        let mut child = command
             .args(build_agent_args(args, prompt))
             .current_dir(working_directory)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| AppError::Io(e.to_string()))?;
+            .map_err(|e| format_agent_spawn_error(&program, &e))?;
 
         if let Some(stdout) = child.stdout.take() {
             spawn_agent_reader(

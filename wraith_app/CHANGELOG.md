@@ -2,6 +2,7 @@
 
 ## 2026-05-09
 
+- Package Wraith `3.0.1` as a V3 agent hotfix: packaged macOS builds now resolve configured agent CLIs through the app PATH, the user's login shell, Homebrew/npm/mise/asdf/nvm, and common user shim directories before spawning; newly added blank agent profiles stay visible in Settings so they can be filled in; and the Agent chat user bubble plus Send button use the active accent color.
 - Package Wraith V3 as version `3.0.0` after the stabilization pass.
 - Start the V3 stabilization pass with `SPECs/v3-stabilization.md`, capturing Arthur's V2 daily-use feedback around agent chat configuration, HTML-first image embeds, split tab stacks, drag/drop reliability, and sidebar/file-tree icon polish. Replace the right-sidebar Properties gear with a code-style icon, give Outline its own bulleted-list icon, and show distinct image/PDF icons in the file tree.
 - Build out the V3 stabilization pass: Agent sidebar profiles are now settings-backed local command definitions for Codex, Claude Code, Hermes, and custom agents; note-body image drops copy into root `attachments/` and insert portable HTML `<img ... width="300">` embeds; HTML image blocks handle absolute, vault-relative, and remote image paths through the existing resolver; split view now has independent left/right tab stacks with per-pane tab bars and "Open in split"; folder-tree import failures name the target path; and Tauri webview zoom hotkeys are enabled for `Command +` / `Command -`.

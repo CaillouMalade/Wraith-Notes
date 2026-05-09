@@ -489,15 +489,31 @@ function AgentPanel() {
             {messages.map((message) => (
               <div
                 key={message.id}
+                style={
+                  message.role === "user"
+                    ? {
+                        background:
+                          "color-mix(in srgb, var(--accent) 20%, transparent)",
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 45%, transparent)",
+                      }
+                    : undefined
+                }
                 className={`rounded-lg px-3 py-2 text-[13px] leading-relaxed ${
                   message.role === "user"
-                    ? "bg-[var(--surface-selected)] text-[var(--text-primary)]"
+                    ? "border text-[var(--text-primary)]"
                     : message.role === "assistant"
                       ? "bg-[var(--surface-input)] text-[var(--text-secondary)]"
                       : "border border-[var(--line-subtle)] text-[var(--text-muted)]"
                 }`}
               >
-                <div className="mb-1 text-[11px] uppercase text-[var(--text-muted)]">
+                <div
+                  className={`mb-1 text-[11px] uppercase ${
+                    message.role === "user"
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--text-muted)]"
+                  }`}
+                >
                   {message.role === "user"
                     ? "You"
                     : message.role === "assistant"
@@ -528,7 +544,7 @@ function AgentPanel() {
         <button
           type="button"
           onClick={() => void send()}
-          className="right-sidebar-button"
+          className="right-sidebar-button right-sidebar-button-primary"
           disabled={!draft.trim() || !selectedCommand.program || isRunning}
         >
           {isRunning ? "Running..." : `Send to ${selectedCommand.label}`}

@@ -214,6 +214,11 @@ V3 shipped:
 - final split-tab/sidebar-collapsed overlap and callout-in-quote rendering
   polish.
 
+V3.0.1 shipped as a packaged-app hotfix: agent CLIs are resolved the same way a
+GUI app needs to find Terminal-installed tools on macOS, blank newly added agent
+profiles remain editable in Settings, and the Agent chat's outgoing message and
+Send button use the active accent color.
+
 ## Implementation Order
 
 Suggested V3 sequence:
