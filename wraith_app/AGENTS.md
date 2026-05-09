@@ -17,9 +17,10 @@ Wraith is the active app. It is a local-first Tauri v2 desktop Markdown vault ap
 ## Current State
 
 - V1 is shipped/tagged `v1.0.0` as the historical rebrand baseline.
-- V2 is shipped/tagged `v2.0.0` and is the current daily Wraith release.
-- Current source is expected to match `v2.0.0` plus any post-release fixes.
-- Main next focus: post-V2 cleanup and V3 stabilization, especially the V2 deferrals around note-body image/PDF drag/drop reliability and split-tab UX polish.
+- V2 is shipped/tagged `v2.0.0` as the historical daily-app compatibility baseline.
+- V3 is shipped/tagged `v3.0.0`; `v3.0.1` is the current packaged agent hotfix and current daily Wraith release.
+- Current source is expected to match `v3.0.1` plus any intentional post-release fixes.
+- Main next focus: post-V3 cleanup and next-slice stabilization, especially keeping docs aligned and fixing concrete daily-use rough edges around the shipped Agent/media/split surfaces.
 
 ## Core Principle
 
@@ -75,16 +76,18 @@ Notes:
 - Do not restore Writer's updater configuration unless Wraith has its own release pipeline.
 - Do not follow Tolaria/Laputa Todoist, CodeScene, Codacy, branch, or push workflow for Wraith unless Arthur explicitly says to.
 
-## Post-V2 Roadmap Frame
+## Post-V3 Roadmap Frame
 
 `SPECs/v2-obsidian-tolaria-compatibility-roadmap.md` is now a historical V2 spec plus deferral record. V2 shipped shared resolver work, asset browsing/opening, Obsidian image/PDF embeds, callouts, frontmatter wikilinks, math decorations, configurable shortcuts, split center panes, and right-sidebar Agent/Terminal/Git/Properties/Outline surfaces.
 
-Known V3/post-V2 follow-ups:
+`SPECs/v3-stabilization.md` is now the historical V3 stabilization record. V3 shipped settings-backed Agent profiles, packaged-app CLI resolution for agents, HTML-first image drops into notes, HTML image rendering for local and remote sources, independent split-tab stacks, file-tree drag/drop polish, right-sidebar icon polish, zoom hotkeys, and final callout/split visual fixes.
 
-1. Make note-body Finder image/PDF drag/drop reliable enough to promise.
-2. Polish split-tab UX and tab/split interactions.
-3. Keep docs, release notes, and agent guidance aligned with the shipped source.
-4. Inspect Writer/Tolaria first when a feature likely already has an implementation to adapt.
+Known post-V3 follow-ups:
+
+1. Keep docs, release notes, and agent guidance aligned with the shipped source.
+2. Fix concrete daily-use rough edges as Arthur finds them, especially around the shipped Agent/media/split surfaces.
+3. Inspect Writer/Tolaria first when a feature likely already has an implementation to adapt.
+4. Create focused specs for substantial V4/next-slice work instead of reopening the historical V2 or V3 specs.
 
 Useful Tolaria reference areas:
 

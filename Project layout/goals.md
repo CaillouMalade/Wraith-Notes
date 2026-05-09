@@ -3,8 +3,8 @@
 > This prompt produced the `experiment/hermes-v2-one-shot` worktree and the
 > `v2.0.0` release tag. It is no longer current operating guidance for normal
 > Wraith work. Active Wraith source is `wraith_app/`, now aligned with
-> `v2.0.0`; current guidance lives in `AGENTS.md`, `wraith_app/AGENTS.md`,
-> [[Feature Workflow & Versions]], and [[V2 Release Log]].
+> `v3.0.1`; current guidance lives in `AGENTS.md`, `wraith_app/AGENTS.md`,
+> [[Feature Workflow & Versions]], and [[V3 Release Log]].
 >
 > Original brief preserved below for context.
 

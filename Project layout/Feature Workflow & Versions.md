@@ -15,20 +15,26 @@ what each version contains. Companion to [[Wraith]] (vision),
 | Version | State | Contents | Tag |
 |---|---|---|---|
 | V1 (`1.0.0`) | **Shipped** — installed at `/Applications/Wraith.app` | Writer Computer source, rebranded as Wraith, updater removed, dev/release config split. Plus two bug fixes: vite alias resolution for paths with spaces, and disabling Vite+'s pre-commit hook that blocks all commits without a `vp staged` config. Functionally equivalent to Writer at the moment Writer was forked. | `v1.0.0` |
-| V2 (`2.0.0`) | **Shipped** — current daily release | Daily-app compatibility/shell pass: shared vault resolver, image/PDF asset visibility and preview tabs, Obsidian image/PDF embeds, callouts, frontmatter wikilink chips, KaTeX math, configurable shortcuts, right sidebar Agent/Terminal/Git/Properties/Outline surfaces, split center view, Git automation, and V2 ship fixes. See [[V2 Release Log]]. | `v2.0.0` |
-| V3+ | Planned cleanup/stabilization | V2 deferrals and polish: reliable note-body image/PDF drag/drop, split-tab UX polish, source/docs cleanup, and whichever next roadmap slice Arthur chooses. | — |
+| V2 (`2.0.0`) | **Shipped** — historical compatibility baseline | Daily-app compatibility/shell pass: shared vault resolver, image/PDF asset visibility and preview tabs, Obsidian image/PDF embeds, callouts, frontmatter wikilink chips, KaTeX math, configurable shortcuts, right sidebar Agent/Terminal/Git/Properties/Outline surfaces, split center view, Git automation, and V2 ship fixes. See [[V2 Release Log]]. | `v2.0.0` |
+| V3 (`3.0.0`) | **Shipped** — stabilization release | Accepted post-V2 stabilization: Settings-backed Agent profiles, HTML-first image drops, HTML image rendering, independent split tab stacks, file-tree drag/drop polish, right-sidebar icon polish, zoom hotkeys, and final split/callout fixes. See [[V3 Release Log]]. | `v3.0.0` |
+| V3.0.1 (`3.0.1`) | **Shipped** — current daily release | Packaged-agent hotfix: GUI-packaged Wraith now resolves Terminal-installed agent CLIs, blank new agent profiles remain editable in Settings, and Agent chat uses the active accent color. | `v3.0.1` |
+| V4+ | Planned next slice | Focused future work chosen by Arthur. Keep specs narrow, preserve files-first behavior, and borrow from Writer/Tolaria where they already solve the target behavior. | — |
 
 V2 was built in a one-shot release worktree and tagged there first. On
 2026-05-09, active `wraith_app/main` was fast-forwarded to `v2.0.0` and the
 release worktree was removed, so `wraith_app/` is the single working tree
 and `v2.0.0` is the V2 baseline.
 
+V3 and V3.0.1 were then shipped from the normal `wraith_app/main` checkout.
+As of 2026-05-09, `main` is at `v3.0.1` (`8595907 Fix packaged agent
+profiles`) and that tag is the current source baseline.
+
 ## What's currently in the repo vs installed
 
 The two are independent on purpose:
 
 - **Installed app at `/Applications/Wraith.app`** = the current daily release
-  binary. As of V2, the source tag is `v2.0.0`; replacing the app requires a
+  binary. As of V3.0.1, the source tag is `v3.0.1`; replacing the app requires a
   fresh `pnpm app:build` and install from the generated bundle.
 - **Source tree at `wraith_app/`** = the active Wraith codebase. It should
   match the current shipped tag plus any intentional post-release fixes. Run
@@ -43,6 +49,8 @@ everything that changed in the source for that release. The current one:
 - [[V0 Setup Log]] — rebrand work; retroactively V1's setup/release log.
 - [[V2 Release Log]] — the shipped V2 daily-app pass and explicit V3
   deferrals.
+- [[V3 Release Log]] — the shipped V3 stabilization pass and V3.0.1 packaged
+  agent hotfix.
 
 ## Per-feature workflow
 
@@ -122,9 +130,12 @@ external users.
 
 ### Steps to ship
 
-1. **Decide the new version number** (e.g. you've finished the V2 compat
-   features → ship `2.0.0`).
-2. **Bump version in `wraith_app/apps/desktop/src-tauri/tauri.conf.json`.**
+1. **Decide the new version number** (e.g. you've finished a V4 slice →
+   ship `4.0.0`, or a hotfix → ship `3.0.2`).
+2. **Bump version in the release/version files:**
+   - `wraith_app/apps/desktop/src-tauri/tauri.conf.json`
+   - `wraith_app/apps/desktop/src-tauri/Cargo.toml`
+   - `wraith_app/apps/desktop/package.json`
 3. **Update [[Feature Workflow & Versions]]** (this file): mark the row
    for the about-to-ship version with what's in it.
 4. **Create the per-version release log**: copy the structure of
@@ -146,7 +157,7 @@ external users.
    ```
    For V1: `git tag v1.0.0`. The tag points at the exact commit that
    produced the binary. Lets you later run `git checkout v1.0.0` to see
-   the V1 source, or `git diff v1.0.0..v2.0.0` to see what changed.
+   the V1 source, or `git diff v2.0.0..v3.0.1` to see what changed.
 
    No need to push tags anywhere unless/until Wraith has a remote. Local
    tags work fine for solo use.
@@ -158,7 +169,7 @@ Solo project, single machine, optimize for clarity over ceremony.
 - **One commit per feature** on `main`. No branches needed for a solo
   project. If a feature is risky, commit smaller WIP commits on `main`
   and clean them up later if you care.
-- **Tag at every release** (`v1.0.0`, `v2.0.0`, …). This is the one
+- **Tag at every release** (`v1.0.0`, `v2.0.0`, `v3.0.1`, …). This is the one
   practice that genuinely pays back — you can always answer "what was in
   V1?" by running `git show v1.0.0` or `git diff v1.0.0..HEAD`.
 - **Never amend or force-push** commits that are tagged. The tag becomes
@@ -191,4 +202,17 @@ Recorded for posterity:
    removed so `wraith_app/` is the single working tree.
 4. `apps/desktop/package.json` and `apps/desktop/src-tauri/tauri.conf.json`
    both record `2.0.0`.
-5. See [[V2 Release Log]] for shipped contents and known V3 deferrals.
+5. See [[V2 Release Log]] for shipped contents and the then-known V3
+   deferrals that V3 later addressed.
+
+## V3 close-out (done 2026-05-09)
+
+Recorded for posterity:
+
+1. V3 implementation committed and tagged: `4958bec Ship Wraith v3.0.0`.
+2. The release tag is `v3.0.0`.
+3. V3.0.1 hotfix committed and tagged: `8595907 Fix packaged agent profiles`.
+4. The hotfix tag is `v3.0.1` and is the current daily source baseline.
+5. `apps/desktop/package.json`, `apps/desktop/src-tauri/Cargo.toml`, and
+   `apps/desktop/src-tauri/tauri.conf.json` all record `3.0.1`.
+6. See [[V3 Release Log]] for shipped contents and validation notes.

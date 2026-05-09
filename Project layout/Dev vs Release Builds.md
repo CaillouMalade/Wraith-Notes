@@ -17,7 +17,7 @@ Companion to [[Wraith]], [[Development Setup]], [[V0 Setup Log]].
 
 | Mode | Command (from `wraith_app/`) | Identifier | Product name | Lives at |
 |---|---|---|---|---|
-| Daily-use installed app (V1, V2, …) | `pnpm app:build` | `com.wraith` | "Wraith" | `/Applications/Wraith.app` |
+| Daily-use installed app (V1, V2, V3, …) | `pnpm app:build` | `com.wraith` | "Wraith" | `/Applications/Wraith.app` |
 | Dev iteration loop | `pnpm app:dev` | `com.wraith.dev` | "Wraith Dev" | runs from source, no install |
 
 Both can coexist. They do not share preferences or state. Single-instance
@@ -35,7 +35,8 @@ The full config. This is what `tauri build` reads by default. Owns:
 - `productName: "Wraith"` — what shows in the dock, Finder, and menu bar.
 - `identifier: "com.wraith"` — the macOS bundle ID. Drives the Application
   Support folder (`~/Library/Application Support/com.wraith/`).
-- `version` — bumped manually before each release (`1.0.0`, `2.0.0`, …).
+- `version` — bumped manually before each release (`1.0.0`, `2.0.0`,
+  `3.0.1`, …).
 - All windowing, security, bundle, plugin config.
 
 ### `tauri.conf.dev.json` — dev overrides
@@ -90,10 +91,12 @@ The two commands you'll use 99% of the time are `app:dev` and `app:build`.
 
 ### Releasing a new version
 
-1. Decide the new version number (e.g. you're shipping V2 → `2.0.0`).
+1. Decide the new version number (e.g. you're shipping V4 → `4.0.0`, or a
+   hotfix → `3.0.2`).
 2. Edit `wraith_app/apps/desktop/src-tauri/tauri.conf.json`:
    - Bump `version` to the target number.
-3. Optionally bump `version` in `wraith_app/apps/desktop/package.json` to match (cosmetic, the Tauri version is what shows in the bundle).
+3. Bump `version` in `wraith_app/apps/desktop/src-tauri/Cargo.toml` and
+   `wraith_app/apps/desktop/package.json` to match.
 4. Run `pnpm app:build` from `wraith_app/`. ~10–25 min on first run, ~2–5 min after.
 5. The DMG appears at `apps/desktop/src-tauri/target/release/bundle/dmg/Wraith_<version>_aarch64.dmg`.
 6. Open the DMG, drag `Wraith.app` over the existing one in `/Applications/` (replace).

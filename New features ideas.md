@@ -1,0 +1,1 @@
+/Users/arthurbrourhant/Vaults/Agentic_Vault/Projects/Wraith/New features ideas.md
