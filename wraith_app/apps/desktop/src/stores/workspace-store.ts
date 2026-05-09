@@ -54,6 +54,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       tabs: [],
       activeTabId: null,
       activeFilePath: null,
+      splitViewEnabled: false,
+      activeSplitPane: "left",
+      splitPaneTabIds: { left: [], right: [] },
+      splitPaneActiveTabId: { left: null, right: null },
     });
 
     const info = await tauri.openWorkspace(path);
@@ -87,6 +91,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       tabs: [],
       activeTabId: null,
       activeFilePath: null,
+      splitViewEnabled: false,
+      activeSplitPane: "left",
+      splitPaneTabIds: { left: [], right: [] },
+      splitPaneActiveTabId: { left: null, right: null },
     });
     set({ root: null, directoryCache: new Map(), expandedDirs: new Set(), isIndexing: false });
   },
@@ -98,6 +106,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       tabs: [],
       activeTabId: null,
       activeFilePath: null,
+      splitViewEnabled: false,
+      activeSplitPane: "left",
+      splitPaneTabIds: { left: [], right: [] },
+      splitPaneActiveTabId: { left: null, right: null },
     });
 
     set({

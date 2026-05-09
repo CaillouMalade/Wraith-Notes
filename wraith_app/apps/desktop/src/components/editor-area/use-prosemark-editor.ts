@@ -87,6 +87,7 @@ const EMBEDDABLE_ASSET_EXTENSIONS = new Set([
   "tiff",
   "pdf",
 ]);
+const IMAGE_ASSET_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff"]);
 
 const VIEWPORT_OVERSHOOT = 2000;
 const VIEWPORT_PARSE_BUDGET_MS = 50;
@@ -128,6 +129,18 @@ function assetFileKindFromPath(path: string): "image" | "pdf" | null {
   const extension = dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
   if (extension === "pdf") return "pdf";
   return EMBEDDABLE_ASSET_EXTENSIONS.has(extension) ? "image" : null;
+}
+
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function imageHtml(relativePath: string) {
+  return `<img src="${escapeHtmlAttribute(relativePath)}" width="300">`;
 }
 
 // True when the latest transaction was a search/replace navigation
@@ -235,8 +248,8 @@ async function fileToBytes(file: File): Promise<number[]> {
   return Array.from(new Uint8Array(buffer));
 }
 
-function isEmbeddableFile(file: File) {
-  return file.type.startsWith("image/") || file.type === "application/pdf" || isEmbeddableAssetPath(file.name);
+function isDroppableImageFile(file: File) {
+  return file.type.startsWith("image/") || isImageAssetPath(file.name);
 }
 
 async function handleBrowserAssetDrop(
@@ -263,7 +276,7 @@ async function handleBrowserAssetDrop(
 
   if (isDisposed() || imported.length === 0) return;
 
-  const markdown = imported.map((file) => `![[attachments/${file.name}]]`).join("\n");
+  const markdown = imported.map((file) => imageHtml(`attachments/${file.name}`)).join("\n");
   const cursor = view.state.selection.main.head;
   view.dispatch({ changes: { from: cursor, insert: markdown } });
 }
@@ -274,8 +287,8 @@ function getPathExtension(path: string) {
   return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
 }
 
-function isEmbeddableAssetPath(path: string) {
-  return EMBEDDABLE_ASSET_EXTENSIONS.has(getPathExtension(path));
+function isImageAssetPath(path: string) {
+  return IMAGE_ASSET_EXTENSIONS.has(getPathExtension(path));
 }
 
 async function handleNativeAssetDrop(
@@ -286,14 +299,14 @@ async function handleNativeAssetDrop(
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
 
-  const embeddablePaths = paths.filter(isEmbeddableAssetPath);
+  const embeddablePaths = paths.filter(isImageAssetPath);
   if (embeddablePaths.length === 0) return;
 
   const attachmentsDir = `${workspaceRoot.replace(/\/$/, "")}/attachments`;
   const imported = await tauri.importPaths(attachmentsDir, embeddablePaths);
   if (isDisposed() || imported.length === 0) return;
 
-  const markdown = imported.map((file) => `![[attachments/${file.name}]]`).join("\n");
+  const markdown = imported.map((file) => imageHtml(`attachments/${file.name}`)).join("\n");
   const cursor = view.state.selection.main.head;
   view.dispatch({ changes: { from: cursor, insert: markdown } });
 }
@@ -691,7 +704,7 @@ function createEditorExtensions(
         const files = event.dataTransfer?.files;
         if (!files || files.length === 0) return false;
 
-        const embeddableFiles = Array.from(files).filter(isEmbeddableFile);
+        const embeddableFiles = Array.from(files).filter(isDroppableImageFile);
         if (embeddableFiles.length === 0) return false;
 
         event.preventDefault();

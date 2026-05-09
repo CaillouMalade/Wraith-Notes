@@ -313,8 +313,9 @@ export function agentStart(
   program: string,
   args: string[],
   prompt: string,
+  cwd?: string | null,
 ): Promise<AgentStartResult> {
-  return invoke("agent_start", { id, program, args, prompt });
+  return invoke("agent_start", { id, program, args, prompt, cwd: cwd ?? null });
 }
 
 export function agentStop(id: string): Promise<void> {

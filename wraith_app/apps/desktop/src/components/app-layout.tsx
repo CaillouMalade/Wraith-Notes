@@ -8,6 +8,7 @@ import { RightSidebar } from "./right-sidebar";
 import { SidebarToggleButton } from "./sidebar/sidebar-toggle-button";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { useUIStore } from "@/stores/ui-store";
+import { useEditorStore } from "@/stores/editor-store";
 
 function clampSidebarWidth(width: number, maxSidebarWidth: number) {
   return Math.max(220, Math.min(maxSidebarWidth, Math.round(width)));
@@ -19,6 +20,7 @@ export function AppLayout() {
   const setRightSidebarOpen = useUIStore((state) => state.setRightSidebarOpen);
   const rightSidebarWidth = useUIStore((state) => state.rightSidebarWidth);
   const setRightSidebarWidth = useUIStore((state) => state.setRightSidebarWidth);
+  const isSplitView = useEditorStore((state) => state.splitViewEnabled);
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const maxSidebarWidth = Math.max(280, Math.min(420, Math.floor(viewportWidth * 0.35)));
   const maxRightSidebarWidth = Math.max(320, Math.min(560, Math.floor(viewportWidth * 0.45)));
@@ -203,18 +205,20 @@ export function AppLayout() {
       >
         <SidebarToggleButton />
       </div>
-      <div
-        className="pointer-events-none absolute top-0 z-40"
-        style={{
-          left: tabChromeLeft,
-          right: tabChromeRight,
-          transition: isSidebarDragging ? "none" : "left 140ms ease-out",
-        }}
-      >
-        <div className="pointer-events-auto">
-          <EditorTabs />
+      {!isSplitView && (
+        <div
+          className="pointer-events-none absolute top-0 z-40"
+          style={{
+            left: tabChromeLeft,
+            right: tabChromeRight,
+            transition: isSidebarDragging ? "none" : "left 140ms ease-out",
+          }}
+        >
+          <div className="pointer-events-auto">
+            <EditorTabs />
+          </div>
         </div>
-      </div>
+      )}
       {!isRightSidebarOpen && (
         <div
           className="pointer-events-auto absolute right-0 top-0 z-50 flex items-center"

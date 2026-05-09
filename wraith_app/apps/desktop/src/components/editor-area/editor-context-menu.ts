@@ -238,6 +238,7 @@ export type TabMenuActionId =
   | "close"
   | "close-others"
   | "close-all"
+  | "move-to-other-split"
   | "reveal-in-sidebar"
   | "copy-path";
 
@@ -245,6 +246,7 @@ export interface TabMenuHandlers {
   onClose: () => void;
   onCloseOthers: () => void;
   onCloseAll: () => void;
+  onMoveToOtherSplit?: () => void;
   onRevealInSidebar: () => void;
   onCopyPath: () => void;
 }
@@ -258,6 +260,16 @@ export function buildTabMenuItemsSpec(
     { kind: "item", id: "close", text: "Close", action: handlers.onClose },
     { kind: "item", id: "close-others", text: "Close others", action: handlers.onCloseOthers },
     { kind: "item", id: "close-all", text: "Close all", action: handlers.onCloseAll },
+    ...(handlers.onMoveToOtherSplit
+      ? [
+          {
+            kind: "item" as const,
+            id: "move-to-other-split" as const,
+            text: "Move to other split",
+            action: handlers.onMoveToOtherSplit,
+          },
+        ]
+      : []),
     { kind: "separator" },
     {
       kind: "item",

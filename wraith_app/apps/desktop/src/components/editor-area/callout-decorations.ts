@@ -5,10 +5,11 @@ import {
   ViewPlugin,
   ViewUpdate,
   type DecorationSet,
+  WidgetType,
 } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
-const CALLOUT_RE = /^\s*>\s*\[!([A-Za-z][\w-]*)\]([+-])?(?:\s+(.*))?$/;
+const CALLOUT_RE = /^(\s*>\s*\[!([A-Za-z][\w-]*)\]([+-])?)(?:\s+(.*))?$/;
 
 const TYPE_TO_TONE: Record<string, string> = {
   note: "info",
@@ -55,6 +56,38 @@ function isInCode(view: EditorView, pos: number) {
   return false;
 }
 
+function titleForType(type: string) {
+  return type
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}`)
+    .join(" ");
+}
+
+class CalloutMarkerWidget extends WidgetType {
+  constructor(
+    readonly type: string,
+    readonly hasTitle: boolean,
+  ) {
+    super();
+  }
+
+  eq(other: CalloutMarkerWidget) {
+    return this.type === other.type && this.hasTitle === other.hasTitle;
+  }
+
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = "cm-callout-title-prefix";
+    span.textContent = this.hasTitle ? "" : titleForType(this.type);
+    return span;
+  }
+
+  ignoreEvent() {
+    return false;
+  }
+}
+
 function buildDecorations(view: EditorView) {
   const builder = new RangeSetBuilder<Decoration>();
 
@@ -64,14 +97,25 @@ function buildDecorations(view: EditorView) {
       const line = view.state.doc.lineAt(pos);
       const match = line.text.match(CALLOUT_RE);
       if (match && !isInCode(view, line.from)) {
-        const type = match[1].toLowerCase();
+        const type = match[2].toLowerCase();
+        const title = match[4]?.trim() ?? "";
         const tone = TYPE_TO_TONE[type] ?? "generic";
+        const markerEnd = match[1].length;
+        const titleGap = title ? (line.text.slice(markerEnd).match(/^\s+/)?.[0].length ?? 0) : 0;
+        const replaceTo = line.from + markerEnd + titleGap;
         builder.add(
           line.from,
           line.from,
           Decoration.line({
             class: `cm-callout-line cm-callout-start cm-callout-${tone}`,
             attributes: { "data-callout-type": type },
+          }),
+        );
+        builder.add(
+          line.from,
+          replaceTo,
+          Decoration.replace({
+            widget: new CalloutMarkerWidget(type, Boolean(title)),
           }),
         );
 
@@ -97,35 +141,37 @@ function buildDecorations(view: EditorView) {
 
 const calloutTheme = EditorView.baseTheme({
   ".cm-callout-line": {
-    backgroundColor: "color-mix(in srgb, var(--accent) 8%, transparent)",
-    borderLeft: "3px solid var(--accent)",
-    paddingLeft: "12px",
+    "--pm-blockquote-vertical-line-background-color": "var(--callout-border-color)",
   },
   ".cm-callout-start": {
-    borderTopLeftRadius: "8px",
-    borderTopRightRadius: "8px",
+    fontWeight: "600",
+  },
+  ".cm-callout-title-prefix": {
     fontWeight: "600",
   },
   ".cm-callout-info": {
-    borderLeftColor: "color-mix(in srgb, var(--accent) 80%, white)",
+    "--callout-border-color": "color-mix(in srgb, var(--accent) 80%, white)",
   },
   ".cm-callout-success": {
-    borderLeftColor: "#4f9f68",
+    "--callout-border-color": "#4f9f68",
   },
   ".cm-callout-warning": {
-    borderLeftColor: "#b58a2a",
+    "--callout-border-color": "#b58a2a",
   },
   ".cm-callout-danger": {
-    borderLeftColor: "#b85c5c",
+    "--callout-border-color": "#b85c5c",
   },
   ".cm-callout-question": {
-    borderLeftColor: "#7d72c6",
+    "--callout-border-color": "#7d72c6",
   },
   ".cm-callout-example": {
-    borderLeftColor: "#8a72a8",
+    "--callout-border-color": "#8a72a8",
   },
   ".cm-callout-quote": {
-    borderLeftColor: "var(--text-muted)",
+    "--callout-border-color": "var(--text-muted)",
+  },
+  ".cm-callout-generic": {
+    "--callout-border-color": "var(--accent)",
   },
 });
 

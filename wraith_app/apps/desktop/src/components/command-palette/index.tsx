@@ -26,6 +26,8 @@ import {
   useOpenFile,
   useOpenSettingsTab,
   useOpenTabs,
+  useSetSplitViewEnabled,
+  useSplitViewEnabled,
 } from "@/hooks/use-tabs";
 import { useTheme } from "@/hooks/use-theme";
 import { useFuzzySearch } from "./use-fuzzy-search";
@@ -58,7 +60,8 @@ export function CommandPalette() {
   const { toggleTheme } = useTheme();
   const openSettingsTab = useOpenSettingsTab();
   const toggleRightSidebar = useUIStore((state) => state.toggleRightSidebar);
-  const toggleSplitView = useUIStore((state) => state.toggleSplitView);
+  const isSplitView = useSplitViewEnabled();
+  const setSplitViewEnabled = useSetSplitViewEnabled();
 
   const isCreateIntent = intent === "create-file";
   const trimmedSearch = search.trim();
@@ -123,7 +126,7 @@ export function CommandPalette() {
       label: "Toggle Split View",
       description: "Command",
       run: () => {
-        toggleSplitView();
+        setSplitViewEnabled(!isSplitView);
         close();
       },
     },

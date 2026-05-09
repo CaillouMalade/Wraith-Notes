@@ -3,7 +3,7 @@ use crate::state::AppState;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -144,6 +144,38 @@ fn validate_agent_program(program: &str) -> Result<(), AppError> {
         return Err(AppError::Io("Agent command is empty".into()));
     }
     Ok(())
+}
+
+fn resolve_agent_working_directory(
+    workspace: &Path,
+    cwd: Option<String>,
+) -> Result<PathBuf, AppError> {
+    let Some(cwd) = cwd
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(workspace.to_path_buf());
+    };
+
+    if cwd.eq_ignore_ascii_case("vault") || cwd.eq_ignore_ascii_case("vault root") {
+        return Ok(workspace.to_path_buf());
+    }
+
+    let path = PathBuf::from(&cwd);
+    let resolved = if path.is_absolute() {
+        path
+    } else {
+        workspace.join(path)
+    };
+
+    if !resolved.is_dir() {
+        return Err(AppError::Io(format!(
+            "Agent working directory does not exist: {}",
+            resolved.to_string_lossy()
+        )));
+    }
+
+    Ok(resolved)
 }
 
 fn run_agent_program(
@@ -515,10 +547,12 @@ pub async fn agent_start(
     program: String,
     args: Vec<String>,
     prompt: String,
+    cwd: Option<String>,
     webview: tauri::Webview,
     app: tauri::AppHandle,
 ) -> Result<AgentStartResult, AppError> {
     let workspace = current_workspace(&webview, &app)?;
+    let working_directory = resolve_agent_working_directory(&workspace, cwd)?;
     let label = webview.label().to_string();
     let app_for_spawn = app.clone();
     blocking(move || {
@@ -529,7 +563,7 @@ pub async fn agent_start(
 
         let mut child = Command::new(program)
             .args(build_agent_args(args, prompt))
-            .current_dir(workspace)
+            .current_dir(working_directory)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()

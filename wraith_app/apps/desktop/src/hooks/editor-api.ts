@@ -1,4 +1,4 @@
-import { getEditorSessionSnapshot, useEditorStore } from "@/stores/editor-store";
+import { createSettingsTab, getEditorSessionSnapshot, useEditorStore } from "@/stores/editor-store";
 export type { OpenFile, Tab, SessionTab } from "@/stores/editor-store";
 import type { SessionTab } from "@/stores/editor-store";
 
@@ -24,6 +24,10 @@ export function getActiveFilePath() {
 
 export function openNewTab() {
   useEditorStore.getState().openNewTab();
+}
+
+export function openSettingsTab() {
+  useEditorStore.getState().openOrFocus((tab) => tab.location.kind === "settings", createSettingsTab);
 }
 
 export function closeFile(path: string) {
@@ -78,12 +82,20 @@ export function openFileInNewTab(path: string) {
   return useEditorStore.getState().openFileInNewTab(path);
 }
 
+export function openFileInPane(path: string, pane: "left" | "right") {
+  return useEditorStore.getState().openFileInPane(path, pane);
+}
+
 export function openAsset(path: string, fileKind: "image" | "pdf") {
   useEditorStore.getState().openAsset(path, fileKind);
 }
 
 export function openAssetInNewTab(path: string, fileKind: "image" | "pdf") {
   useEditorStore.getState().openAssetInNewTab(path, fileKind);
+}
+
+export function openAssetInPane(path: string, fileKind: "image" | "pdf", pane: "left" | "right") {
+  useEditorStore.getState().openAssetInPane(path, fileKind, pane);
 }
 
 export function removePathReferences(path: string) {

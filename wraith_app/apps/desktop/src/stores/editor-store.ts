@@ -43,6 +43,8 @@ export interface Tab {
   forward: Location[];
 }
 
+export type SplitPaneId = "left" | "right";
+
 export type { Location, FileLocation } from "@/components/editor-area/page-kinds";
 
 export interface SessionTab {
@@ -56,11 +58,17 @@ interface EditorState {
   tabs: Tab[];
   activeTabId: string | null;
   activeFilePath: string | null;
+  splitViewEnabled: boolean;
+  activeSplitPane: SplitPaneId;
+  splitPaneTabIds: Record<SplitPaneId, string[]>;
+  splitPaneActiveTabId: Record<SplitPaneId, string | null>;
 
   openFile: (path: string) => Promise<void>;
   openFileInNewTab: (path: string) => Promise<void>;
+  openFileInPane: (path: string, pane: SplitPaneId) => Promise<void>;
   openAsset: (path: string, fileKind: AssetFileKind) => void;
   openAssetInNewTab: (path: string, fileKind: AssetFileKind) => void;
+  openAssetInPane: (path: string, fileKind: AssetFileKind, pane: SplitPaneId) => void;
   openNewTab: () => void;
   ensureLauncherTab: () => void;
   openOrFocus: (match: (tab: Tab) => boolean, factory: () => Tab) => void;
@@ -70,6 +78,9 @@ interface EditorState {
   closeActiveTab: () => void;
   setActiveFile: (path: string) => void;
   setActiveTab: (tabId: string) => void;
+  setSplitViewEnabled: (enabled: boolean) => void;
+  setActiveSplitPane: (pane: SplitPaneId) => void;
+  moveTabToSplitPane: (tabId: string, pane: SplitPaneId) => void;
   navigateToFile: (path: string) => Promise<void>;
   navigateBack: () => Promise<void>;
   navigateForward: () => Promise<void>;
@@ -194,6 +205,130 @@ function getTabIndex(tabs: Tab[], tabId: string) {
 
 function getActiveTab(state: Pick<EditorState, "tabs" | "activeTabId">) {
   return state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
+}
+
+function getTabPane(
+  state: Pick<EditorState, "splitPaneTabIds">,
+  tabId: string | null,
+): SplitPaneId | null {
+  if (!tabId) return null;
+  if (state.splitPaneTabIds.left.includes(tabId)) return "left";
+  if (state.splitPaneTabIds.right.includes(tabId)) return "right";
+  return null;
+}
+
+function removeTabId(ids: string[], tabId: string) {
+  return ids.filter((id) => id !== tabId);
+}
+
+function nextPaneActiveTabId(
+  ids: string[],
+  preferredId: string | null | undefined,
+  fallbackIndex?: number,
+) {
+  if (preferredId && ids.includes(preferredId)) return preferredId;
+  if (typeof fallbackIndex === "number") {
+    return ids[fallbackIndex] ?? ids[fallbackIndex - 1] ?? ids[0] ?? null;
+  }
+  return ids[0] ?? null;
+}
+
+function tabIds(tabs: Tab[]) {
+  return tabs.map((tab) => tab.id);
+}
+
+function singlePaneSplitFields(tabs: Tab[], activeTabId: string | null) {
+  const ids = tabIds(tabs);
+  return {
+    splitPaneTabIds: { left: ids, right: [] },
+    splitPaneActiveTabId: { left: activeTabId ?? ids[0] ?? null, right: null },
+    activeSplitPane: "left" as SplitPaneId,
+  };
+}
+
+function assignTabToPaneFields(
+  state: Pick<
+    EditorState,
+    "splitViewEnabled" | "activeSplitPane" | "splitPaneTabIds" | "splitPaneActiveTabId"
+  >,
+  tabId: string,
+  pane?: SplitPaneId,
+) {
+  const targetPane = state.splitViewEnabled ? (pane ?? state.activeSplitPane) : "left";
+  const splitPaneTabIds = {
+    left: removeTabId(state.splitPaneTabIds.left, tabId),
+    right: removeTabId(state.splitPaneTabIds.right, tabId),
+  };
+  splitPaneTabIds[targetPane] = [...splitPaneTabIds[targetPane], tabId];
+
+  return {
+    splitPaneTabIds,
+    splitPaneActiveTabId: {
+      ...state.splitPaneActiveTabId,
+      [targetPane]: tabId,
+      ...(state.splitViewEnabled ? {} : { right: null }),
+    },
+    activeSplitPane: targetPane,
+  };
+}
+
+function setActiveTabFields(
+  state: Pick<
+    EditorState,
+    "tabs" | "splitViewEnabled" | "splitPaneTabIds" | "splitPaneActiveTabId" | "activeSplitPane"
+  >,
+  tabId: string,
+) {
+  const pane = state.splitViewEnabled ? (getTabPane(state, tabId) ?? state.activeSplitPane) : "left";
+  return {
+    activeTabId: tabId,
+    activeFilePath: deriveActiveFilePath(state.tabs, tabId),
+    activeSplitPane: pane,
+    splitPaneActiveTabId: {
+      ...state.splitPaneActiveTabId,
+      [pane]: tabId,
+    },
+  };
+}
+
+function reconcileSplitFieldsForTabs(
+  state: Pick<
+    EditorState,
+    "splitViewEnabled" | "splitPaneTabIds" | "splitPaneActiveTabId" | "activeSplitPane"
+  >,
+  tabs: Tab[],
+  activeTabId: string | null,
+) {
+  if (!state.splitViewEnabled) return singlePaneSplitFields(tabs, activeTabId);
+
+  const existing = new Set(tabIds(tabs));
+  const left = state.splitPaneTabIds.left.filter((id) => existing.has(id));
+  const right = state.splitPaneTabIds.right.filter((id) => existing.has(id) && !left.includes(id));
+  const assigned = new Set([...left, ...right]);
+  for (const tab of tabs) {
+    if (!assigned.has(tab.id)) left.push(tab.id);
+  }
+
+  const splitPaneTabIds = { left, right };
+  const activePane = getTabPane({ splitPaneTabIds }, activeTabId) ?? state.activeSplitPane;
+  return {
+    splitPaneTabIds,
+    splitPaneActiveTabId: {
+      left:
+        activePane === "left"
+          ? activeTabId
+          : left.includes(state.splitPaneActiveTabId.left ?? "")
+            ? state.splitPaneActiveTabId.left
+            : left[0] ?? null,
+      right:
+        activePane === "right"
+          ? activeTabId
+          : right.includes(state.splitPaneActiveTabId.right ?? "")
+            ? state.splitPaneActiveTabId.right
+            : right[0] ?? null,
+    },
+    activeSplitPane: activePane,
+  };
 }
 
 function collectReferencedPaths(tabs: Tab[]) {
@@ -326,6 +461,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   tabs: [],
   activeTabId: null,
   activeFilePath: null,
+  splitViewEnabled: false,
+  activeSplitPane: "left",
+  splitPaneTabIds: { left: [], right: [] },
+  splitPaneActiveTabId: { left: null, right: null },
 
   openFile: async (path: string) => {
     const state = get();
@@ -360,6 +499,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       tabs: [...state.tabs, nextTab],
       activeTabId: nextTab.id,
       activeFilePath: path,
+      ...assignTabToPaneFields(state, nextTab.id),
     }));
 
     try {
@@ -383,6 +523,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: [...state.tabs, nextTab],
         activeTabId: nextTab.id,
         activeFilePath: path,
+        ...assignTabToPaneFields(state, nextTab.id),
         ...(openFiles ? { openFiles } : {}),
       };
     });
@@ -393,6 +534,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       get().closeTab(nextTab.id);
       throw new Error(`Failed to open ${path}`);
     }
+  },
+
+  openFileInPane: async (path: string, pane: SplitPaneId) => {
+    get().setSplitViewEnabled(true);
+    get().setActiveSplitPane(pane);
+    await get().openFile(path);
   },
 
   openAsset: (path: string, fileKind: AssetFileKind) => {
@@ -425,6 +572,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: [...currentState.tabs, nextTab],
         activeTabId: nextTab.id,
         activeFilePath: null,
+        ...assignTabToPaneFields(currentState, nextTab.id),
       };
     });
   },
@@ -435,7 +583,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       tabs: [...state.tabs, nextTab],
       activeTabId: nextTab.id,
       activeFilePath: null,
+      ...assignTabToPaneFields(state, nextTab.id),
     }));
+  },
+
+  openAssetInPane: (path: string, fileKind: AssetFileKind, pane: SplitPaneId) => {
+    get().setSplitViewEnabled(true);
+    const existing = get().tabs.find(
+      (tab) => tab.location.kind === "asset" && tab.location.path === path,
+    );
+    if (existing) {
+      get().moveTabToSplitPane(existing.id, pane);
+      return;
+    }
+    get().setActiveSplitPane(pane);
+    get().openAsset(path, fileKind);
   },
 
   openNewTab: () => {
@@ -444,6 +606,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       tabs: [...state.tabs, nextTab],
       activeTabId: nextTab.id,
       activeFilePath: null,
+      ...assignTabToPaneFields(state, nextTab.id),
     }));
   },
 
@@ -455,6 +618,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: [launcherTab],
         activeTabId: launcherTab.id,
         activeFilePath: null,
+        splitPaneTabIds: { left: [launcherTab.id], right: [] },
+        splitPaneActiveTabId: { left: launcherTab.id, right: null },
+        activeSplitPane: "left",
       };
     });
   },
@@ -487,6 +653,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: [...currentState.tabs, nextTab],
         activeTabId: nextTab.id,
         activeFilePath: deriveActiveFilePath([...currentState.tabs, nextTab], nextTab.id),
+        ...assignTabToPaneFields(currentState, nextTab.id),
       };
     });
   },
@@ -570,22 +737,65 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const closedTab = state.tabs[index]!;
       let tabs = state.tabs.filter((tab) => tab.id !== tabId);
+      const closingPane = getTabPane(state, tabId) ?? state.activeSplitPane;
+      const closingPaneIndex = state.splitPaneTabIds[closingPane].indexOf(tabId);
+      const splitPaneTabIds = {
+        left: removeTabId(state.splitPaneTabIds.left, tabId),
+        right: removeTabId(state.splitPaneTabIds.right, tabId),
+      };
 
       let activeTabId = state.activeTabId;
       if (tabs.length === 0) {
         const launcherTab = createLauncherTab();
         tabs = [launcherTab];
         activeTabId = launcherTab.id;
+        splitPaneTabIds.left = [launcherTab.id];
+        splitPaneTabIds.right = [];
       } else if (state.activeTabId === tabId) {
-        activeTabId = tabs[index]?.id ?? tabs[index - 1]?.id ?? null;
+        const paneIds = splitPaneTabIds[closingPane];
+        activeTabId =
+          paneIds[closingPaneIndex] ??
+          paneIds[closingPaneIndex - 1] ??
+          state.splitPaneActiveTabId[closingPane === "left" ? "right" : "left"] ??
+          tabs[index]?.id ??
+          tabs[index - 1]?.id ??
+          null;
+      }
+
+      if (state.splitViewEnabled) {
+        for (const pane of ["left", "right"] as const) {
+          if (splitPaneTabIds[pane].length === 0) {
+            const launcherTab = createLauncherTab();
+            tabs = [...tabs, launcherTab];
+            splitPaneTabIds[pane] = [launcherTab.id];
+            if (!activeTabId) activeTabId = launcherTab.id;
+          }
+        }
       }
 
       const files = maybePruneFiles(state, tabs, tabPaths(closedTab));
+      const activePane = getTabPane({ splitPaneTabIds }, activeTabId) ?? closingPane;
+      const paneActiveTabId = (pane: SplitPaneId) => {
+        if (activePane === pane) return activeTabId;
+        return nextPaneActiveTabId(
+          splitPaneTabIds[pane],
+          state.splitPaneActiveTabId[pane],
+          pane === closingPane ? closingPaneIndex : undefined,
+        );
+      };
 
       return {
         tabs,
         activeTabId,
         activeFilePath: deriveActiveFilePath(tabs, activeTabId),
+        splitPaneTabIds: state.splitViewEnabled ? splitPaneTabIds : singlePaneSplitFields(tabs, activeTabId).splitPaneTabIds,
+        splitPaneActiveTabId: state.splitViewEnabled
+          ? {
+              left: paneActiveTabId("left"),
+              right: paneActiveTabId("right"),
+            }
+          : singlePaneSplitFields(tabs, activeTabId).splitPaneActiveTabId,
+        activeSplitPane: state.splitViewEnabled ? activePane : "left",
         ...(files ? { openFiles: files } : {}),
       };
     });
@@ -603,13 +813,132 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       (candidate) => candidate.location.kind === "file" && candidate.location.path === path,
     );
     if (!tab) return;
-    set({ activeTabId: tab.id, activeFilePath: path });
+    set((state) => setActiveTabFields(state, tab.id));
   },
 
   setActiveTab: (tabId: string) => {
     const tab = get().tabs.find((candidate) => candidate.id === tabId);
     if (!tab) return;
-    set({ activeTabId: tabId, activeFilePath: deriveActiveFilePath(get().tabs, tabId) });
+    set((state) => setActiveTabFields(state, tabId));
+  },
+
+  setSplitViewEnabled: (enabled: boolean) => {
+    set((state) => {
+      if (state.splitViewEnabled === enabled) return state;
+      let tabs = state.tabs;
+      let activeTabId = state.activeTabId ?? tabs[0]?.id ?? null;
+
+      if (!enabled) {
+        const orderedIds = [
+          ...state.splitPaneTabIds.left,
+          ...state.splitPaneTabIds.right,
+          ...tabIds(tabs).filter(
+            (id) =>
+              !state.splitPaneTabIds.left.includes(id) &&
+              !state.splitPaneTabIds.right.includes(id),
+          ),
+        ];
+        const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+        tabs = orderedIds.map((id) => byId.get(id)).filter((tab): tab is Tab => Boolean(tab));
+        return {
+          tabs,
+          activeTabId,
+          activeFilePath: deriveActiveFilePath(tabs, activeTabId),
+          splitViewEnabled: false,
+          ...singlePaneSplitFields(tabs, activeTabId),
+        };
+      }
+
+      if (tabs.length === 0) {
+        const launcherTab = createLauncherTab();
+        tabs = [launcherTab];
+        activeTabId = launcherTab.id;
+      }
+
+      if (!activeTabId || !tabs.some((tab) => tab.id === activeTabId)) {
+        activeTabId = tabs[0]?.id ?? null;
+      }
+
+      if (tabs.length === 1) {
+        const launcherTab = createLauncherTab();
+        tabs = [...tabs, launcherTab];
+      }
+
+      const ids = tabIds(tabs);
+      const rightSeed = ids.find((id) => id !== activeTabId) ?? null;
+      const leftIds = ids.filter((id) => id !== rightSeed);
+      const rightIds = rightSeed ? [rightSeed] : [];
+
+      return {
+        tabs,
+        activeTabId,
+        activeFilePath: deriveActiveFilePath(tabs, activeTabId),
+        splitViewEnabled: true,
+        activeSplitPane: "left",
+        splitPaneTabIds: { left: leftIds, right: rightIds },
+        splitPaneActiveTabId: { left: activeTabId, right: rightSeed },
+      };
+    });
+  },
+
+  setActiveSplitPane: (pane: SplitPaneId) => {
+    set((state) => {
+      const targetTabId = state.splitPaneActiveTabId[pane] ?? state.splitPaneTabIds[pane][0] ?? null;
+      if (!targetTabId) return { activeSplitPane: pane };
+      return {
+        activeSplitPane: pane,
+        activeTabId: targetTabId,
+        activeFilePath: deriveActiveFilePath(state.tabs, targetTabId),
+        splitPaneActiveTabId: { ...state.splitPaneActiveTabId, [pane]: targetTabId },
+      };
+    });
+  },
+
+  moveTabToSplitPane: (tabId: string, pane: SplitPaneId) => {
+    set((state) => {
+      if (!state.tabs.some((tab) => tab.id === tabId)) return state;
+      const sourcePane = getTabPane(state, tabId);
+      const splitPaneTabIds = {
+        left: removeTabId(state.splitPaneTabIds.left, tabId),
+        right: removeTabId(state.splitPaneTabIds.right, tabId),
+      };
+      splitPaneTabIds[pane] = [...splitPaneTabIds[pane], tabId];
+      const nextActiveByPane = {
+        ...state.splitPaneActiveTabId,
+        [pane]: tabId,
+      };
+      if (sourcePane && sourcePane !== pane) {
+        nextActiveByPane[sourcePane] = nextPaneActiveTabId(
+          splitPaneTabIds[sourcePane],
+          state.splitPaneActiveTabId[sourcePane],
+        );
+      }
+
+      for (const candidate of ["left", "right"] as const) {
+        if (splitPaneTabIds[candidate].length > 0) continue;
+        const launcherTab = createLauncherTab();
+        nextActiveByPane[candidate] = launcherTab.id;
+        return {
+          tabs: [...state.tabs, launcherTab],
+          activeTabId: tabId,
+          activeFilePath: deriveActiveFilePath(state.tabs, tabId),
+          activeSplitPane: pane,
+          splitPaneTabIds: {
+            ...splitPaneTabIds,
+            [candidate]: [launcherTab.id],
+          },
+          splitPaneActiveTabId: nextActiveByPane,
+        };
+      }
+
+      return {
+        activeTabId: tabId,
+        activeFilePath: deriveActiveFilePath(state.tabs, tabId),
+        activeSplitPane: pane,
+        splitPaneTabIds,
+        splitPaneActiveTabId: nextActiveByPane,
+      };
+    });
   },
 
   navigateToFile: async (path: string) => {
@@ -825,11 +1154,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const files = state.openFiles.has(path) ? new Map(state.openFiles) : null;
       files?.delete(path);
+      const splitFields = reconcileSplitFieldsForTabs(state, tabs, activeTabId);
 
       return {
         tabs,
         activeTabId,
         activeFilePath: deriveActiveFilePath(tabs, activeTabId),
+        ...splitFields,
         ...(files ? { openFiles: files } : {}),
       };
     });
@@ -874,11 +1205,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           files.delete(path);
         }
       }
+      const splitFields = reconcileSplitFieldsForTabs(state, tabs, activeTabId);
 
       return {
         tabs,
         activeTabId,
         activeFilePath: deriveActiveFilePath(tabs, activeTabId),
+        ...splitFields,
         openFiles: files,
       };
     });
@@ -937,6 +1270,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs,
         openFiles: files,
         activeFilePath: state.activeFilePath ? rewritePath(state.activeFilePath) : null,
+        ...reconcileSplitFieldsForTabs(state, tabs, state.activeTabId),
       };
     });
 
@@ -974,6 +1308,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: [],
         activeTabId: null,
         activeFilePath: null,
+        splitViewEnabled: false,
+        activeSplitPane: "left",
+        splitPaneTabIds: { left: [], right: [] },
+        splitPaneActiveTabId: { left: null, right: null },
       });
       get().ensureLauncherTab();
       return;
@@ -1026,6 +1364,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: restoredTabs,
         activeTabId: activeTab?.id ?? null,
         activeFilePath: activePath,
+        splitViewEnabled: false,
+        ...singlePaneSplitFields(restoredTabs, activeTab?.id ?? null),
       };
     });
 
@@ -1068,6 +1408,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         tabs: nextTabs,
         activeTabId,
         activeFilePath: deriveActiveFilePath(nextTabs, activeTabId),
+        ...reconcileSplitFieldsForTabs(state, nextTabs, activeTabId),
       };
     });
 

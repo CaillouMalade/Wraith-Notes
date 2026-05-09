@@ -10,7 +10,6 @@ interface UIState {
   isRightSidebarOpen: boolean;
   rightSidebarWidth: number;
   rightSidebarView: RightSidebarView;
-  isSplitView: boolean;
 
   openCommandPalette: (intent?: CommandPaletteIntent) => void;
   closeCommandPalette: () => void;
@@ -19,7 +18,6 @@ interface UIState {
   setRightSidebarOpen: (open: boolean) => void;
   setRightSidebarWidth: (width: number) => void;
   setRightSidebarView: (view: RightSidebarView) => void;
-  toggleSplitView: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -29,7 +27,6 @@ export const useUIStore = create<UIState>((set) => ({
   isRightSidebarOpen: true,
   rightSidebarWidth: 320,
   rightSidebarView: "agent",
-  isSplitView: false,
 
   openCommandPalette: (intent = "search") =>
     set({ isCommandPaletteOpen: true, commandPaletteIntent: intent, commandPaletteSearch: "" }),
@@ -44,5 +41,4 @@ export const useUIStore = create<UIState>((set) => ({
   setRightSidebarOpen: (open: boolean) => set({ isRightSidebarOpen: open }),
   setRightSidebarWidth: (width: number) => set({ rightSidebarWidth: width }),
   setRightSidebarView: (view: RightSidebarView) => set({ rightSidebarView: view }),
-  toggleSplitView: () => set((state) => ({ isSplitView: !state.isSplitView })),
 }));

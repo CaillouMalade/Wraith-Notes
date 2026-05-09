@@ -12,7 +12,9 @@ import { useOpenAsset, useOpenAssetInNewTab, useOpenFile } from "@/hooks/use-tab
 import {
   getOpenFile,
   getOpenFiles,
+  openAssetInPane,
   openFileInNewTab as openFileInNewTabAction,
+  openFileInPane,
   removePathReferences,
   removePathsWithPrefix,
   renameOpenFile,
@@ -68,9 +70,21 @@ async function openTreeEntry(
 
 async function importDroppedFiles(files: FileList, targetDir: string) {
   for (const file of Array.from(files)) {
-    const buffer = await file.arrayBuffer();
-    await tauri.importFile(targetDir, file.name, Array.from(new Uint8Array(buffer)));
+    const targetPath = `${targetDir.replace(/\/$/, "")}/${file.name}`;
+    try {
+      const buffer = await file.arrayBuffer();
+      await tauri.importFile(targetDir, file.name, Array.from(new Uint8Array(buffer)));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`${targetPath}: ${reason}`);
+    }
   }
+}
+
+function showImportError(targetDir: string, error: unknown) {
+  window.alert(
+    `Failed to import into ${targetDir}: ${error instanceof Error ? error.message : String(error)}`,
+  );
 }
 
 async function resolveUniqueName(
@@ -149,9 +163,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
         .importPaths(targetDir, paths)
         .then(() => refreshDirectory(targetDir))
         .catch((error: unknown) => {
-          window.alert(
-            `Failed to import: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          showImportError(targetDir, error);
         });
     }).then((dispose) => {
       if (isDisposed) {
@@ -306,6 +318,25 @@ export function FileTree({ rootPath }: FileTreeProps) {
           void openFileInNewTabAction(entry.path).catch((error: unknown) => {
             window.alert(
               `Failed to open in new tab: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+        },
+        onOpenInSplit: () => {
+          if (isPreviewableAsset(entry)) {
+            openAssetInPane(entry.path, entry.file_kind, "right");
+            return;
+          }
+          if (!entry.is_markdown) {
+            void tauri.openPath(entry.path).catch((error: unknown) => {
+              window.alert(
+                `Failed to open: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            });
+            return;
+          }
+          void openFileInPane(entry.path, "right").catch((error: unknown) => {
+            window.alert(
+              `Failed to open in split: ${error instanceof Error ? error.message : String(error)}`,
             );
           });
         },
@@ -555,7 +586,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
       void importDroppedFiles(files, targetDir)
         .then(() => refreshDirectory(targetDir))
         .catch((error: unknown) => {
-          window.alert(`Failed to import: ${error instanceof Error ? error.message : String(error)}`);
+          showImportError(targetDir, error);
         });
     },
     [refreshDirectory],
@@ -577,9 +608,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
         void importDroppedFiles(files, rootPath)
           .then(() => refreshDirectory(rootPath))
           .catch((error: unknown) => {
-            window.alert(
-              `Failed to import: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            showImportError(rootPath, error);
           });
       }}
     >

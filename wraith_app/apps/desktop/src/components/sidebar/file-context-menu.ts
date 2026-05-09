@@ -8,6 +8,7 @@ export { detectPlatform, revealLabelForPlatform, type Platform } from "./context
 export type FileMenuActionId =
   | "open"
   | "open-in-new-tab"
+  | "open-in-split"
   | "duplicate"
   | "copy-relative-path"
   | "copy-absolute-path"
@@ -17,6 +18,7 @@ export type FileMenuActionId =
 export interface FileContextMenuHandlers {
   onOpen: () => void;
   onOpenInNewTab: () => void;
+  onOpenInSplit: () => void;
   onDuplicate: () => void;
   onCopyRelativePath: () => void;
   onCopyAbsolutePath: () => void;
@@ -42,6 +44,12 @@ export function buildFileMenuItemsSpec(
       id: "open-in-new-tab",
       text: "Open in new tab",
       action: handlers.onOpenInNewTab,
+    },
+    {
+      kind: "item",
+      id: "open-in-split",
+      text: "Open in split",
+      action: handlers.onOpenInSplit,
     },
     { kind: "separator" },
     { kind: "item", id: "duplicate", text: "Duplicate", action: handlers.onDuplicate },

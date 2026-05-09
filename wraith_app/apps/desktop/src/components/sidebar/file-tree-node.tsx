@@ -1,6 +1,13 @@
 import { memo, useEffect, useRef, type DragEvent, type MouseEvent } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { File02Icon, Folder01Icon, Folder02Icon } from "@hugeicons/core-free-icons";
+import {
+  File02Icon,
+  FileImageIcon,
+  FileQuestionMarkIcon,
+  Folder01Icon,
+  Folder02Icon,
+  Pdf01Icon,
+} from "@hugeicons/core-free-icons";
 import { useIsActive, useResolvedDocumentTitle } from "@/hooks/use-tabs";
 import { getFileStem } from "@/lib/paths";
 import type { DirEntry } from "@/types/fs";
@@ -17,6 +24,15 @@ function FolderIcon({ isExpanded }: { isExpanded: boolean }) {
 }
 
 function FileIcon({ kind }: { kind: DirEntry["file_kind"] }) {
+  const icon =
+    kind === "image"
+      ? FileImageIcon
+      : kind === "pdf"
+        ? Pdf01Icon
+        : kind === "markdown"
+          ? File02Icon
+          : FileQuestionMarkIcon;
+
   return (
     <span
       className={
@@ -27,7 +43,7 @@ function FileIcon({ kind }: { kind: DirEntry["file_kind"] }) {
             : ""
       }
     >
-      <HugeiconsIcon icon={File02Icon} size={16} color="currentColor" strokeWidth={2} />
+      <HugeiconsIcon icon={icon} size={16} color="currentColor" strokeWidth={2} />
     </span>
   );
 }

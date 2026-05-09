@@ -1,8 +1,18 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { useActiveTab, useActiveTabId, useOpenTabs } from "@/hooks/use-tabs";
+import {
+  useActiveTab,
+  useActiveTabId,
+  useOpenTabs,
+  useSetActiveSplitPane,
+  useSplitPaneActiveTabId,
+  useSplitPaneTabIds,
+  useSplitViewEnabled,
+  type SplitPaneId,
+} from "@/hooks/use-tabs";
 import { pageKind } from "./page-kinds";
 import { EditorSearchOverlay } from "./editor-search-overlay";
-import { useUIStore } from "@/stores/ui-store";
+import { EditorTabs } from "./editor-tabs";
+import { useSidebar } from "@/hooks/use-sidebar";
 
 function clampSplitRatio(value: number) {
   return Math.max(0.25, Math.min(0.75, value));
@@ -12,16 +22,20 @@ function EditorArea() {
   const activeTab = useActiveTab();
   const activeTabId = useActiveTabId();
   const tabs = useOpenTabs();
-  const isSplitView = useUIStore((state) => state.isSplitView);
+  const isSplitView = useSplitViewEnabled();
+  const splitPaneTabIds = useSplitPaneTabIds();
+  const splitPaneActiveTabId = useSplitPaneActiveTabId();
+  const setActiveSplitPane = useSetActiveSplitPane();
+  const { isSidebarCollapsed } = useSidebar();
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const splitRatioRef = useRef(0.5);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [isDraggingSplit, setIsDraggingSplit] = useState(false);
-  const activeIndex = tabs.findIndex((tab) => tab.id === activeTabId);
-  const secondaryTab =
-    isSplitView && activeIndex !== -1 && tabs.length > 1
-      ? tabs[(activeIndex + 1) % tabs.length]
-      : null;
+  const tabsById = new Map(tabs.map((tab) => [tab.id, tab]));
+  const splitTabs = {
+    left: splitPaneTabIds.left.map((id) => tabsById.get(id)).filter((tab): tab is (typeof tabs)[number] => Boolean(tab)),
+    right: splitPaneTabIds.right.map((id) => tabsById.get(id)).filter((tab): tab is (typeof tabs)[number] => Boolean(tab)),
+  };
 
   function renderTab(tab: (typeof tabs)[number], isActive: boolean) {
     const k = pageKind(tab.location);
@@ -76,16 +90,44 @@ function EditorArea() {
     window.addEventListener("pointercancel", handlePointerCancel);
   }, []);
 
+  function renderPane(pane: SplitPaneId) {
+    const paneTabs = splitTabs[pane];
+    const paneActiveId = splitPaneActiveTabId[pane] ?? paneTabs[0]?.id ?? null;
+    const paneChromeLeft = pane === "left" && isSidebarCollapsed ? 132 : 12;
+    return (
+      <div
+        className="relative h-full min-h-0 min-w-0 overflow-hidden"
+        onMouseDown={() => setActiveSplitPane(pane)}
+      >
+        <div
+          data-tauri-drag-region
+          className="pointer-events-none absolute right-3 top-0 z-40"
+          style={{ left: paneChromeLeft }}
+        >
+          <div className="pointer-events-auto">
+            <EditorTabs tabsOverride={paneTabs} activeTabIdOverride={paneActiveId} pane={pane} />
+          </div>
+        </div>
+        {paneTabs.map((tab) => {
+          const k = pageKind(tab.location);
+          const isActive = tab.id === paneActiveId;
+          if (!k.keepAlive && !isActive) return null;
+          return renderTab(tab, isActive);
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-full overflow-hidden">
-      {secondaryTab && activeTab ? (
+      {isSplitView && splitTabs.left.length > 0 && splitTabs.right.length > 0 ? (
         <div
           ref={splitContainerRef}
           className="grid h-full min-h-0 overflow-hidden"
           style={{ gridTemplateColumns: `${splitRatio}fr 0 ${1 - splitRatio}fr` }}
         >
           <div className="relative h-full min-h-0 min-w-0 overflow-hidden border-r border-[var(--line-subtle)]">
-            {renderTab(activeTab, true)}
+            {renderPane("left")}
           </div>
           <div
             role="separator"
@@ -98,7 +140,7 @@ function EditorArea() {
             className="relative z-30 w-0 cursor-col-resize before:absolute before:inset-y-0 before:-left-1 before:w-2 before:content-[''] after:pointer-events-none after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-transparent after:transition-colors after:content-[''] hover:after:bg-[var(--line-subtle)] data-[dragging]:after:bg-[var(--border-color)]"
           />
           <div className="relative h-full min-h-0 min-w-0 overflow-hidden">
-            {renderTab(secondaryTab, true)}
+            {renderPane("right")}
           </div>
         </div>
       ) : (

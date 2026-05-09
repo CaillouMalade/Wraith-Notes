@@ -31,7 +31,13 @@ V2 shipped:
 - split center view;
 - right sidebar Agent/Terminal/Git/Properties/Outline surfaces.
 
-Known V3 deferrals:
+V3 resolution, 2026-05-09: Wraith `3.0.0` shipped the accepted post-V2
+stabilization work for note-body image drops, split-tab UX, agent profiles,
+file-tree drag/drop polish, zoom hotkeys, and final callout/split-tab visual
+fixes. The bullets below are preserved as the historical V2 deferral list, not
+as the current open issue list.
+
+Known V3 deferrals from the V2 release:
 
 - reliable note-body Finder image/PDF drag/drop;
 - split-tab UX and tab/split interaction polish;

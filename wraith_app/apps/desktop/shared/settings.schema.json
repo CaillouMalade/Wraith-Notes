@@ -327,6 +327,18 @@
       "default": 30
     },
     {
+      "key": "agents.profiles",
+      "label": "Agent Profiles",
+      "description": "Configured local CLI agents for the right sidebar chat",
+      "category": "Agents",
+      "type": "list",
+      "default": [
+        "{\"id\":\"codex\",\"name\":\"Codex\",\"command\":\"codex exec --skip-git-repo-check {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Codex CLI.\"}",
+        "{\"id\":\"claude-code\",\"name\":\"Claude Code\",\"command\":\"claude -p {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Arthur can replace this with his local Claude Code command.\"}",
+        "{\"id\":\"hermes\",\"name\":\"Hermes\",\"command\":\"hermes {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Hermes CLI.\"}"
+      ]
+    },
+    {
       "key": "shortcuts.search",
       "label": "Search",
       "description": "Open the search palette",

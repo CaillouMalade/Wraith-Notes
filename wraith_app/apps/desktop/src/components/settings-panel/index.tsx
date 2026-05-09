@@ -4,6 +4,7 @@ import { SETTINGS_SCHEMA, type SettingDef } from "@/lib/settings-schema";
 import { SettingControl } from "./setting-control";
 import { ShortcutsSection } from "./shortcuts-section";
 import { ThemesSection } from "./themes-section";
+import { AgentProfilesSection } from "./agent-profiles-section";
 import { EditorScrollContainer } from "@/components/editor-area/editor-scroll-container";
 
 /** Section that renders above the Themes block. The schema-driven section
@@ -23,6 +24,8 @@ export function SettingsPanel({ isActive }: { isActive: boolean }) {
       if (def.category === "Theme") continue;
       // Shortcut settings need key-capture controls instead of ordinary text inputs.
       if (def.category === "Shortcuts") continue;
+      // Agent profiles are structured JSON strings in the settings layer, edited by a dedicated UI.
+      if (def.category === "Agents") continue;
       const existing = map.get(def.category) ?? [];
       existing.push(def);
       map.set(def.category, existing);
@@ -82,6 +85,8 @@ export function SettingsPanel({ isActive }: { isActive: boolean }) {
           {beforeThemes.map(([cat, defs]) => renderSection(cat, defs))}
 
           <ThemesSection />
+
+          <AgentProfilesSection />
 
           <ShortcutsSection />
 

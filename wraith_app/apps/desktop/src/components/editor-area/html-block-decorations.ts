@@ -297,15 +297,22 @@ const htmlBlockSelectOnMouseDown = EditorView.domEventHandlers({
 });
 
 /**
- * Custom block parser that recognizes self-closing HTML tags (e.g. <br/>, <img ... />)
- * as HTML blocks. The Lezer Type 7 regex doesn't handle self-closing syntax.
+ * Custom block parser that recognizes one-line void HTML tags (e.g. <br>, <img ...>)
+ * as HTML blocks. The default CommonMark HTML block rules do not treat `<img>`
+ * as a block tag, but Wraith uses literal image tags as a first-class embed path.
  */
-const selfClosingBlockParser: BlockParser = {
-  name: "SelfClosingHTMLBlock",
+const voidBlockParser: BlockParser = {
+  name: "VoidHTMLBlock",
   before: "HTMLBlock",
   parse(cx: BlockContext, line: Line) {
     if (line.text.charCodeAt(line.pos) !== 60 /* '<' */) return false;
-    if (!/^\s*<[a-z][\w-]*(?:\s+[^>]*)?\s*\/\s*>\s*$/i.test(line.text)) return false;
+    if (
+      !/^\s*<(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b[^>]*\/?\s*>\s*$/i.test(
+        line.text,
+      )
+    ) {
+      return false;
+    }
     const from = cx.lineStart + line.pos;
     cx.nextLine();
     cx.addElement(cx.elt("HTMLBlock", from, cx.prevLineEnd()));
@@ -334,7 +341,7 @@ const detailsBlockParser: BlockParser = {
 };
 
 export const htmlBlockParserExtension: MarkdownConfig = {
-  parseBlock: [detailsBlockParser, selfClosingBlockParser],
+  parseBlock: [detailsBlockParser, voidBlockParser],
 };
 
 export function htmlBlockDecorations() {

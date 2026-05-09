@@ -2,7 +2,7 @@ import { createSettingsTab, useEditorStore } from "@/stores/editor-store";
 import { locationBehavior } from "@/components/editor-area/page-kinds";
 import type { DocumentStats } from "@/lib/document-stats";
 
-export type { OpenFile, Tab, Location, FileLocation, SessionTab } from "@/stores/editor-store";
+export type { OpenFile, Tab, Location, FileLocation, SessionTab, SplitPaneId } from "@/stores/editor-store";
 
 const EMPTY_STATS: DocumentStats = { words: 0, characters: 0, paragraphs: 0 };
 
@@ -28,6 +28,22 @@ export function useActiveTabId() {
 
 export function useActiveTab() {
   return useEditorStore((s) => s.tabs.find((tab) => tab.id === s.activeTabId) ?? null);
+}
+
+export function useSplitViewEnabled() {
+  return useEditorStore((s) => s.splitViewEnabled);
+}
+
+export function useActiveSplitPane() {
+  return useEditorStore((s) => s.activeSplitPane);
+}
+
+export function useSplitPaneTabIds() {
+  return useEditorStore((s) => s.splitPaneTabIds);
+}
+
+export function useSplitPaneActiveTabId() {
+  return useEditorStore((s) => s.splitPaneActiveTabId);
 }
 
 export function useActiveFilePath() {
@@ -106,6 +122,18 @@ export function useSetActiveFile() {
 
 export function useSetActiveTab() {
   return useEditorStore((s) => s.setActiveTab);
+}
+
+export function useSetSplitViewEnabled() {
+  return useEditorStore((s) => s.setSplitViewEnabled);
+}
+
+export function useSetActiveSplitPane() {
+  return useEditorStore((s) => s.setActiveSplitPane);
+}
+
+export function useMoveTabToSplitPane() {
+  return useEditorStore((s) => s.moveTabToSplitPane);
 }
 
 export function useNavigateToFile() {

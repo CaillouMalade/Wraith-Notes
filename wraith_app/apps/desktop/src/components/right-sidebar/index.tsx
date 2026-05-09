@@ -9,23 +9,29 @@ import {
   ArrowDown01Icon,
   ArrowReloadHorizontalIcon,
   ArrowUp01Icon,
-  CommandLineIcon,
   ComputerTerminal01Icon,
   AlertCircleIcon,
+  CodeIcon,
   FileDiffIcon,
   FileViewIcon,
   FolderOpenIcon,
   GitBranchIcon,
+  LeftToRightListBulletIcon,
   Link01Icon,
   PanelRightCloseIcon,
   PlayIcon,
-  Settings02Icon,
   StopIcon,
 } from "@hugeicons/core-free-icons";
 import { useUIStore, type RightSidebarView } from "@/stores/ui-store";
 import { useActiveFilePath, useFileContent, useFileFrontmatter } from "@/hooks/use-tabs";
 import * as editorApi from "@/hooks/editor-api";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
+import { useSetting } from "@/hooks/use-settings";
+import {
+  AGENT_PROFILES_SETTING_KEY,
+  parseAgentProfiles,
+  type AgentProfile,
+} from "@/lib/agent-profiles";
 import { hasFrontmatterLinks, parseFrontmatterLinks } from "@/lib/frontmatter-links";
 import { parseYamlEntries } from "@/lib/yaml-entries";
 import { jumpToEditorLine } from "@/lib/editor-navigation";
@@ -36,24 +42,18 @@ const VIEWS: Array<{ id: RightSidebarView; label: string; icon: typeof AiChat01I
   { id: "agent", label: "Agent", icon: AiChat01Icon },
   { id: "terminal", label: "Terminal", icon: ComputerTerminal01Icon },
   { id: "git", label: "Git", icon: GitBranchIcon },
-  { id: "properties", label: "Properties", icon: Settings02Icon },
-  { id: "outline", label: "Outline", icon: CommandLineIcon },
+  { id: "properties", label: "Properties", icon: CodeIcon },
+  { id: "outline", label: "Outline", icon: LeftToRightListBulletIcon },
 ];
 
-type AgentPreset = "codex" | "claude" | "custom";
 type AgentMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  agentLabel?: string;
 };
 
-const AGENT_PRESETS: Record<AgentPreset, { label: string; program: string; args: string[] }> = {
-  codex: { label: "Codex", program: "codex", args: ["exec", "--skip-git-repo-check"] },
-  claude: { label: "Claude", program: "claude", args: ["-p"] },
-  custom: { label: "Custom", program: "", args: [] },
-};
-const AGENT_PROVIDER_STORAGE_KEY = "wraith.agent.provider";
-const AGENT_COMMAND_STORAGE_KEY = "wraith.agent.customCommand";
+const AGENT_PROFILE_STORAGE_KEY = "wraith.agent.profile";
 
 function parseCommandLine(input: string): string[] {
   const result: string[] = [];
@@ -101,22 +101,27 @@ function newId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function initialAgentProvider(): AgentPreset {
-  if (typeof window === "undefined") return "codex";
-  const stored = window.localStorage.getItem(AGENT_PROVIDER_STORAGE_KEY);
-  return stored === "codex" || stored === "claude" || stored === "custom" ? stored : "codex";
-}
-
-function initialAgentCommand() {
-  if (typeof window === "undefined") return "codex exec --skip-git-repo-check";
-  return window.localStorage.getItem(AGENT_COMMAND_STORAGE_KEY) ?? "codex exec --skip-git-repo-check";
-}
-
 function buildAgentPrompt(messages: AgentMessage[]) {
   return messages
     .filter((message) => message.role !== "system")
     .map((message) => `${message.role === "user" ? "User" : "Assistant"}:\n${message.content}`)
     .join("\n\n");
+}
+
+function initialAgentProfileId() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(AGENT_PROFILE_STORAGE_KEY);
+}
+
+function commandFromProfile(profile: AgentProfile | null) {
+  if (!profile) return { label: "Agent", program: "", args: [] as string[], command: "" };
+  const parts = parseCommandLine(profile.command);
+  return {
+    label: profile.name,
+    program: parts[0] ?? "",
+    args: parts.slice(1),
+    command: profile.command,
+  };
 }
 
 function OutputBlock({ output }: { output: tauri.CommandOutput | null }) {
@@ -275,31 +280,44 @@ function workspacePath(relativePath: string) {
 }
 
 function AgentPanel() {
+  const rawProfiles = useSetting(AGENT_PROFILES_SETTING_KEY);
+  const profiles = useMemo(() => parseAgentProfiles(rawProfiles), [rawProfiles]);
+  const enabledProfiles = useMemo(
+    () => profiles.filter((profile) => profile.enabled && profile.command.trim()),
+    [profiles],
+  );
   const [draft, setDraft] = useState("");
-  const [provider, setProvider] = useState<AgentPreset>(() => initialAgentProvider());
-  const [customCommand, setCustomCommand] = useState(() => initialAgentCommand());
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() =>
+    initialAgentProfileId(),
+  );
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const runningAgentIdRef = useRef<string | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null);
+  const runningCommandLabelRef = useRef("Agent");
+
+  const selectedProfile = useMemo(
+    () =>
+      enabledProfiles.find((profile) => profile.id === selectedProfileId) ??
+      enabledProfiles[0] ??
+      null,
+    [enabledProfiles, selectedProfileId],
+  );
+
+  const selectedCommand = useMemo(() => commandFromProfile(selectedProfile), [selectedProfile]);
 
   useEffect(() => {
-    window.localStorage.setItem(AGENT_PROVIDER_STORAGE_KEY, provider);
-  }, [provider]);
+    if (!selectedProfile || selectedProfile.id === selectedProfileId) return;
+    setSelectedProfileId(selectedProfile.id);
+  }, [selectedProfile, selectedProfileId]);
 
   useEffect(() => {
-    window.localStorage.setItem(AGENT_COMMAND_STORAGE_KEY, customCommand);
-  }, [customCommand]);
-
-  const selectedCommand = useMemo(() => {
-    if (provider !== "custom") return AGENT_PRESETS[provider];
-    const parts = parseCommandLine(customCommand);
-    return {
-      label: "Custom",
-      program: parts[0] ?? "",
-      args: parts.slice(1),
-    };
-  }, [customCommand, provider]);
+    if (selectedProfileId) {
+      window.localStorage.setItem(AGENT_PROFILE_STORAGE_KEY, selectedProfileId);
+    } else {
+      window.localStorage.removeItem(AGENT_PROFILE_STORAGE_KEY);
+    }
+  }, [selectedProfileId]);
 
   const stop = useCallback(async () => {
     const id = runningAgentIdRef.current;
@@ -321,14 +339,24 @@ function AgentPanel() {
       if (event.payload.stream === "exit") {
         const status = event.payload.status ?? 0;
         const messageId = streamingMessageIdRef.current;
-        if (status !== 0 && messageId) {
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === messageId && message.content.trim().length === 0
-                ? { ...message, role: "system", content: `Exited with status ${status}` }
-                : message,
-            ),
-          );
+        if (status !== 0) {
+          const text = `${runningCommandLabelRef.current} exited with status ${status}`;
+          if (messageId) {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === messageId
+                  ? {
+                      ...message,
+                      role: message.content.trim().length === 0 ? "system" : message.role,
+                      content:
+                        message.content.trim().length === 0
+                          ? text
+                          : `${message.content}\n\n${text}`,
+                    }
+                  : message,
+              ),
+            );
+          }
         }
         runningAgentIdRef.current = null;
         streamingMessageIdRef.current = null;
@@ -343,7 +371,10 @@ function AgentPanel() {
           message.id === messageId
             ? {
                 ...message,
-                role: event.payload.stream === "stderr" && !message.content ? "system" : message.role,
+                role:
+                  event.payload.stream === "stderr" && !message.content
+                    ? "system"
+                    : message.role,
                 content: `${message.content}${event.payload.data}`,
               }
             : message,
@@ -368,13 +399,19 @@ function AgentPanel() {
     const trimmed = draft.trim();
     if (!trimmed || isRunning || !selectedCommand.program) return;
     const userMessage: AgentMessage = { id: newId(), role: "user", content: trimmed };
-    const assistantMessage: AgentMessage = { id: newId(), role: "assistant", content: "" };
+    const assistantMessage: AgentMessage = {
+      id: newId(),
+      role: "assistant",
+      content: "",
+      agentLabel: selectedCommand.label,
+    };
     const nextMessages = [...messages, userMessage];
     const agentId = newId();
 
     setDraft("");
     setMessages([...nextMessages, assistantMessage]);
     setIsRunning(true);
+    runningCommandLabelRef.current = selectedCommand.command || selectedCommand.program;
     runningAgentIdRef.current = agentId;
     streamingMessageIdRef.current = assistantMessage.id;
     try {
@@ -383,13 +420,20 @@ function AgentPanel() {
         selectedCommand.program,
         selectedCommand.args,
         buildAgentPrompt(nextMessages),
+        selectedProfile?.workingDirectory || null,
       );
     } catch (error) {
       runningAgentIdRef.current = null;
       streamingMessageIdRef.current = null;
       setMessages((current) => [
         ...current.filter((message) => message.id !== assistantMessage.id),
-        { id: newId(), role: "system", content: error instanceof Error ? error.message : String(error) },
+        {
+          id: newId(),
+          role: "system",
+          content: `${selectedCommand.command || selectedCommand.program} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
       ]);
       setIsRunning(false);
     }
@@ -397,33 +441,49 @@ function AgentPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="grid grid-cols-3 gap-1 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-1">
-        {(Object.keys(AGENT_PRESETS) as AgentPreset[]).map((id) => (
+      <div className="flex shrink-0 flex-wrap gap-1 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-1">
+        {enabledProfiles.length === 0 ? (
           <button
-            key={id}
             type="button"
-            onClick={() => setProvider(id)}
-            className={`h-7 rounded-md text-[13px] ${
-              provider === id
-                ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-            }`}
+            onClick={() => editorApi.openSettingsTab()}
+            className="h-7 w-full rounded-md text-[13px] text-[var(--text-muted)] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
           >
-            {AGENT_PRESETS[id].label}
+            Configure agents
           </button>
-        ))}
+        ) : (
+          enabledProfiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              onClick={() => setSelectedProfileId(profile.id)}
+              className={`h-7 min-w-0 flex-1 rounded-md px-2 text-[13px] ${
+                selectedProfile?.id === profile.id
+                  ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              }`}
+            >
+              <span className="block truncate">{profile.name}</span>
+            </button>
+          ))
+        )}
       </div>
-      {provider === "custom" && (
-        <input
-          value={customCommand}
-          onChange={(event) => setCustomCommand(event.target.value)}
-          placeholder="agent command"
-          className="h-8 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-input)] px-3 font-mono text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--focus-border)]"
-        />
+      {selectedProfile && (
+        <div className="min-w-0 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] px-3 py-2">
+          <div className="truncate font-mono text-[12px] text-[var(--text-secondary)]">
+            {selectedProfile.command}
+          </div>
+          <div className="mt-1 truncate text-[12px] text-[var(--text-muted)]">
+            {selectedProfile.workingDirectory.trim() || "vault root"}
+          </div>
+        </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-2">
         {messages.length === 0 ? (
-          <div className="px-1 py-1 text-[13px] text-[var(--text-muted)]">No messages</div>
+          <div className="px-1 py-1 text-[13px] text-[var(--text-muted)]">
+            {selectedProfile
+              ? `Ask ${selectedProfile.name} about this vault.`
+              : "Configure an enabled agent in Preferences."}
+          </div>
         ) : (
           <div className="flex flex-col gap-2">
             {messages.map((message) => (
@@ -438,9 +498,15 @@ function AgentPanel() {
                 }`}
               >
                 <div className="mb-1 text-[11px] uppercase text-[var(--text-muted)]">
-                  {message.role === "user" ? "You" : message.role === "assistant" ? selectedCommand.label : "System"}
+                  {message.role === "user"
+                    ? "You"
+                    : message.role === "assistant"
+                      ? (message.agentLabel ?? selectedCommand.label)
+                      : "System"}
                 </div>
-                <div className="whitespace-pre-wrap">{message.content || (isRunning ? "Waiting..." : "")}</div>
+                <div className="whitespace-pre-wrap">
+                  {message.content || (isRunning ? "Waiting..." : "")}
+                </div>
               </div>
             ))}
           </div>

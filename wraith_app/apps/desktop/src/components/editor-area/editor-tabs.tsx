@@ -4,8 +4,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { SplitIcon } from "@hugeicons/core-free-icons";
 import {
   useActiveTabId,
-  useCanNavigateBack,
-  useCanNavigateForward,
   useCloseTab,
   useFileSaveError,
   useIsFileLoading,
@@ -14,7 +12,12 @@ import {
   useOpenNewTab,
   useOpenTabs,
   useResolvedDocumentTitle,
+  useMoveTabToSplitPane,
   useSetActiveTab,
+  useSetActiveSplitPane,
+  useSetSplitViewEnabled,
+  useSplitViewEnabled,
+  type SplitPaneId,
   type Tab,
 } from "@/hooks/use-tabs";
 import { ScrollFade } from "@/components/scroll-fade";
@@ -24,7 +27,6 @@ import { getRelativePath } from "@/lib/paths";
 import { pageKind } from "./page-kinds";
 import { buildTabMenuItemsSpec, showNativeContextMenu } from "./editor-context-menu";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
-import { useUIStore } from "@/stores/ui-store";
 
 interface EditorTabButtonProps {
   tab: Tab;
@@ -101,21 +103,46 @@ function EditorTabButton({
   );
 }
 
-export function EditorTabs() {
-  const tabs = useOpenTabs();
-  const activeTabId = useActiveTabId();
+interface EditorTabsProps {
+  tabsOverride?: Tab[];
+  activeTabIdOverride?: string | null;
+  pane?: SplitPaneId;
+}
+
+export function EditorTabs({ tabsOverride, activeTabIdOverride, pane }: EditorTabsProps = {}) {
+  const allTabs = useOpenTabs();
+  const tabs = tabsOverride ?? allTabs;
+  const storeActiveTabId = useActiveTabId();
+  const activeTabId = activeTabIdOverride ?? storeActiveTabId;
   const setActiveTab = useSetActiveTab();
+  const setActiveSplitPane = useSetActiveSplitPane();
+  const moveTabToSplitPane = useMoveTabToSplitPane();
   const closeTab = useCloseTab();
-  const canNavigateBack = useCanNavigateBack();
-  const canNavigateForward = useCanNavigateForward();
+  const canNavigateBack = useEditorStore((state) => {
+    const tab = state.tabs.find((candidate) => candidate.id === activeTabId);
+    return tab ? tab.back.length > 0 : false;
+  });
+  const canNavigateForward = useEditorStore((state) => {
+    const tab = state.tabs.find((candidate) => candidate.id === activeTabId);
+    return tab ? tab.forward.length > 0 : false;
+  });
   const navigateBack = useNavigateBack();
   const navigateForward = useNavigateForward();
   const openNewTab = useOpenNewTab();
   const workspaceRoot = useWorkspaceRoot();
-  const isSplitView = useUIStore((state) => state.isSplitView);
-  const toggleSplitView = useUIStore((state) => state.toggleSplitView);
+  const isSplitView = useSplitViewEnabled();
+  const setSplitViewEnabled = useSetSplitViewEnabled();
   const [, startTransition] = useTransition();
   useScrollActiveTabIntoView();
+
+  const activatePane = useCallback(() => {
+    if (pane) setActiveSplitPane(pane);
+  }, [pane, setActiveSplitPane]);
+
+  const openNewTabInPane = useCallback(() => {
+    activatePane();
+    openNewTab();
+  }, [activatePane, openNewTab]);
 
   const handleTabContextMenu = useCallback(
     (_event: MouseEvent<HTMLElement>, tab: Tab) => {
@@ -130,7 +157,9 @@ export function EditorTabs() {
           onClose: () => closeTab(tab.id),
           onCloseOthers: () => {
             const state = useEditorStore.getState();
+            const visibleIds = new Set(tabs.map((candidate) => candidate.id));
             for (const t of state.tabs) {
+              if (!visibleIds.has(t.id)) continue;
               if (t.id !== tab.id) closeTab(t.id);
             }
           },
@@ -140,6 +169,9 @@ export function EditorTabs() {
               closeTab(id);
             }
           },
+          onMoveToOtherSplit: pane
+            ? () => moveTabToSplitPane(tab.id, pane === "left" ? "right" : "left")
+            : undefined,
           onRevealInSidebar: () => {
             // Setting the active file highlights it in the sidebar tree
             setActiveTab(tab.id);
@@ -150,7 +182,7 @@ export function EditorTabs() {
         }),
       );
     },
-    [closeTab, setActiveTab, workspaceRoot],
+    [closeTab, moveTabToSplitPane, pane, setActiveTab, tabs, workspaceRoot],
   );
 
   return (
@@ -166,7 +198,10 @@ export function EditorTabs() {
         <button
           type="button"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => void navigateBack()}
+          onClick={() => {
+            activatePane();
+            void navigateBack();
+          }}
           disabled={!canNavigateBack}
           className="flex h-[var(--chrome-control-height)] w-7 items-center justify-center rounded-lg text-base text-[var(--text-icon-muted)] transition-colors enabled:hover:bg-[var(--surface-subtle)] enabled:hover:text-[var(--text-secondary)] disabled:opacity-30"
           title="Back"
@@ -177,7 +212,10 @@ export function EditorTabs() {
         <button
           type="button"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => void navigateForward()}
+          onClick={() => {
+            activatePane();
+            void navigateForward();
+          }}
           disabled={!canNavigateForward}
           className="flex h-[var(--chrome-control-height)] w-7 items-center justify-center rounded-lg text-base text-[var(--text-icon-muted)] transition-colors enabled:hover:bg-[var(--surface-subtle)] enabled:hover:text-[var(--text-secondary)] disabled:opacity-30"
           title="Forward"
@@ -203,7 +241,12 @@ export function EditorTabs() {
                   <EditorTabButton
                     tab={tab}
                     isActive={isActive}
-                    onSelect={(tabId) => startTransition(() => setActiveTab(tabId))}
+                    onSelect={(tabId) =>
+                      startTransition(() => {
+                        activatePane();
+                        setActiveTab(tabId);
+                      })
+                    }
                     onClose={closeTab}
                     onContextMenu={handleTabContextMenu}
                   />
@@ -214,7 +257,7 @@ export function EditorTabs() {
         </ScrollFade>
         <button
           type="button"
-          onClick={openNewTab}
+          onClick={openNewTabInPane}
           className="ml-1 flex h-[var(--chrome-control-height)] w-8 shrink-0 items-center justify-center rounded-lg text-base text-[var(--text-icon-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
           title="New tab"
           aria-label="New tab"
@@ -223,7 +266,7 @@ export function EditorTabs() {
         </button>
         <button
           type="button"
-          onClick={toggleSplitView}
+          onClick={() => setSplitViewEnabled(!isSplitView)}
           className={`ml-0.5 flex h-[var(--chrome-control-height)] w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)] ${
             isSplitView
               ? "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"

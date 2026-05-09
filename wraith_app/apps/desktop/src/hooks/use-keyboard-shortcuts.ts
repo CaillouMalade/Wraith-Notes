@@ -34,6 +34,8 @@ export function useKeyboardShortcuts() {
         closeActiveTab,
         navigateBack,
         navigateForward,
+        splitViewEnabled,
+        setSplitViewEnabled,
       } = useEditorStore.getState();
 
       // Alt+Arrow: history navigation when no editable target is focused;
@@ -107,7 +109,7 @@ export function useKeyboardShortcuts() {
       // Cmd+Shift+S — split center editor area
       if (matches("shortcuts.toggle-split-view")) {
         e.preventDefault();
-        useUIStore.getState().toggleSplitView();
+        setSplitViewEnabled(!splitViewEnabled);
         return;
       }
 
