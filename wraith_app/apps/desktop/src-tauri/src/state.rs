@@ -56,6 +56,7 @@ pub struct IndexedFile {
     pub path: PathBuf,
     pub relative_path: String,
     pub name: String,
+    pub file_kind: String,
 }
 
 impl Default for WorkspaceState {

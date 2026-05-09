@@ -287,6 +287,27 @@ describe("resolveWikiLink", () => {
 
     expect(result).toEqual({ kind: "unresolved" });
   });
+
+  test("uses resolver fallback for unique old path-style suffixes", async () => {
+    const fuzzySearch = vi.fn().mockResolvedValue([
+      makeResult({
+        path: "/vault/People/A B.md",
+        filename: "A B.md",
+        relative_path: "People/A B.md",
+      }),
+    ]);
+    const fileExists = vi.fn().mockResolvedValue(false);
+
+    const result = await resolveWikiLink(
+      "old/export/path/People/A B",
+      "/vault",
+      fuzzySearch,
+      fileExists,
+    );
+
+    expect(result).toEqual({ kind: "internal", path: "/vault/People/A B.md" });
+    expect(fuzzySearch).toHaveBeenCalledWith("A B", 50);
+  });
 });
 
 // ---------------------------------------------------------------------------

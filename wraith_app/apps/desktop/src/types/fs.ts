@@ -3,6 +3,7 @@ export interface DirEntry {
   path: string;
   is_dir: boolean;
   is_markdown: boolean;
+  file_kind: "directory" | "markdown" | "image" | "pdf";
   modified_at: number;
   title: string | null;
 }
@@ -28,6 +29,7 @@ export interface SearchResult {
   path: string;
   filename: string;
   relative_path: string;
+  file_kind?: "markdown" | "image" | "pdf";
   score: number;
   match_indices: number[];
 }

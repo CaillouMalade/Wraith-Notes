@@ -1,7 +1,43 @@
 # Changelog
 
+## 2026-05-09
+
+- Fix the app chrome layering around asset tabs and the right sidebar. The tab strip now stops before the open right sidebar, the right sidebar sits on its own higher layer, and asset previews reserve the same top chrome space as notes so PDF metadata no longer collides with tab controls.
+- Fix split-view scroll containment by giving each split pane an explicit full-height, min-height-zero clipping box so mouse-wheel scrolling targets the pane's own editor scroller instead of leaking through the grid layout.
+- Harden editor Finder drops by checking both DPI-adjusted and raw native drop coordinates before deciding whether a dropped image/PDF landed inside the CodeMirror editor. This keeps folder-tree drops working while making note drops less dependent on Retina coordinate reporting.
+- Fix shortcut remapping capture on macOS by listening at the window capture phase while a shortcut row is recording, so the next keypress is registered even when the clicked button does not retain focus. Shortcut labels now display `Cmd` / `Option` / `Control` instead of leaking the internal `Mod` token.
+- Fix newly dropped Obsidian image embeds staying as raw placeholders when the caret lands exactly at the end of the inserted `![[...]]` syntax. Boundary caret positions no longer suppress the image decoration, and failed image loads now show a clear inline failure message instead of a blank embed.
+- Make Obsidian image/PDF embeds non-invasive in the editable document. The raw `![[...]]` syntax stays selectable/editable, and the preview now renders as a separate block widget after it instead of replacing the text range, avoiding cursor/selection lockups in CodeMirror.
+- Restore right-sidebar resizing after the sidebar layering fix by lifting the zero-width resize handle above the sidebar panel.
+- Record the V2 ship decision and V3 deferrals in the V2 roadmap: note-body image drag/drop remains unreliable after multiple resolver/import/embed-rendering attempts, and split-tab UX needs V3 polish. Bump the app release version to `2.0.0` and restore local DMG bundling for the V2 installer build.
+
 ## 2026-05-08
 
+- Start the full Wraith daily-app pass. Supported image/PDF assets now appear in the sidebar with a file kind, open as first-class in-app preview tabs instead of being read as Markdown or bounced straight to the OS, and can be duplicated/imported without UTF-8 assumptions. Dragging images into a note copies them to root `attachments/` and inserts an Obsidian embed; dragging files onto the tree imports them into the target folder.
+- Route local image/PDF links from notes into the same asset preview tab path, and make ordinary Markdown image rendering use the vault asset resolver so attachment-folder and old path-style image references resolve consistently with Obsidian embeds.
+- Add a shared vault target resolver foundation for note links, Markdown asset links, Obsidian embeds, frontmatter wikilinks, ambiguity, missing targets, and unsafe traversal. Body wikilink navigation now uses this resolver fallback for old path-style suffixes while preserving the existing click API.
+- Extend the workspace search index and command palette to include supported image/PDF assets with file kinds, so assets can be found from search and open directly in read-only asset tabs. Wiki-link autocomplete filters those asset results back out so note linking stays note-only.
+- Add a Keyboard Shortcuts preferences section for app-level commands, with key-capture editing, reset, conflict warnings, persistent settings, and runtime dispatch through the configured bindings.
+- Add compatibility rendering for Obsidian image/PDF embeds, Obsidian callout blocks, frontmatter wikilink chips, and KaTeX math (`$...$` / `$$...$$`) as editor decorations that preserve raw Markdown/YAML source.
+- Add a right sidebar shell with Agent, Terminal, Git, Properties, and Outline views; add basic Claude `-p`, Terminal-at-vault-root, and Git status/pull/push/commit-all command plumbing. Add split center view and shortcuts/command-palette entries for the new sidebar and split controls.
+- Make split center view resizable with a draggable divider so the two visible panes are not locked to a fixed 50/50 layout.
+- Replace the half-built sidebar integrations: the Agent view now supports Codex, Claude, and a custom command instead of being hardwired to Claude; the right sidebar has an in-panel close/reopen path and matches the app chrome more closely; Terminal now runs as an integrated PTY-backed workspace terminal using xterm.js and resizes the backend PTY with the panel instead of launching Terminal.app.
+- Rework the Agent panel from a single prompt/output form into a chat-style side surface with message history, clear, provider selection, and local persistence for the selected provider/custom command.
+- Make Agent runs stream into the chat as the CLI produces output, add a Stop action backed by a Tauri process-session manager, and clean up running agents when the owning window closes.
+- Keep right-sidebar panels mounted after first use so switching away from the Terminal tab no longer tears down the integrated shell session, and Agent/Git panel state is not discarded during normal sidebar tab changes.
+- Keep the right sidebar mounted while collapsed so closing and reopening it preserves stateful tools instead of tearing down the terminal/agent side surface.
+- Make the Outline sidebar functional: heading rows now jump the active editor to the selected heading line, center it in the editor, and move focus/caret there.
+- Upgrade the Git sidebar from raw command buttons to a usable sync surface: it now refreshes status automatically, shows branch/upstream/ahead-behind state, lists changed files, refreshes after pull/push/commit, clears successful commit messages, and adds a one-click pull-then-push Sync action.
+- Harden the Git sidebar further with non-repository detection plus Initialize Git, remote listing, Add Remote, conflict banners, per-file Open/Reveal/Diff actions, and staged/unstaged diff output so the sidebar is a working repo surface instead of just command plumbing.
+- Add Git automation preferences for Auto Pull and AutoGit checkpoints. Auto Pull periodically pulls only when a remote is configured and the working tree is clean; AutoGit commits saved local changes after an idle/inactive grace period and pushes when a remote exists.
+- Fix real native drag/drop in the Tauri runtime. Finder drops are now handled through Tauri's `tauri://drag-drop` event, copied from source paths through a backend `import_paths` command, refreshed in the sidebar, and inserted as Obsidian embeds when images/PDFs are dropped onto the editor.
+- Switch Finder drop handling to Tauri v2's webview drag/drop API so real native file drops fire in release windows instead of relying on the generic event listener.
+- Keep the file tree as a real drop target even when the current folder is empty, so importing into an empty vault/folder works instead of rendering a dead "No files" placeholder.
+- Fix asset preview tabs so PDFs/images no longer remain mounted as visible inactive pages; PDF previews now use an in-app object preview with a graceful external-open fallback, following the Tolaria preview pattern.
+- Add a visible split-view toggle button to the tab chrome and tighten the right-sidebar top padding so the sidebar no longer opens with a large blank buffer above its controls.
+- Extend browser/webview editor drops to handle multiple embeddable assets, including PDFs, and make the right Properties sidebar render clickable frontmatter wikilinks like the editor frontmatter panel.
+- Fix the desktop package scripts to call Vite+ (`vp`) directly so `pnpm --filter desktop run build` works with the workspace catalog's Vite+ alias.
+- Keep release builds app-only for now: `pnpm app:build` now passes `--bundles app`, and the Tauri bundle target is `["app"]` instead of `all`, so the normal build creates `Wraith.app` without attempting a DMG.
 - Replace the app icon with the Shroud ghost mark (cream squircle, dark gradient ghost). Regenerated the full Tauri icon set (macOS `.icns`, Windows `.ico`, PNG sizes, iOS AppIcon, Android mipmaps) from a 1024×1024 source at `apps/desktop/src-tauri/icons/source.png`. Replaced the in-app favicon (`public/vite.svg` → `public/wraith-icon.png`) and updated `index.html`.
 
 ## 2026-05-07

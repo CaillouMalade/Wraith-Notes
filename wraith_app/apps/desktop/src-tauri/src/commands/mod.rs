@@ -5,4 +5,5 @@ pub mod settings;
 #[cfg(target_os = "macos")]
 pub mod shell_install;
 pub mod startup;
+pub mod tools;
 pub mod workspace;

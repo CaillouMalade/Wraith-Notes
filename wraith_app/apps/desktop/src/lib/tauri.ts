@@ -35,12 +35,43 @@ export function renameEntry(oldPath: string, newPath: string): Promise<void> {
   return invoke("rename_entry", { oldPath, newPath });
 }
 
+export function copyFile(sourcePath: string, targetPath: string): Promise<void> {
+  return invoke("copy_file", { sourcePath, targetPath });
+}
+
+export function importFile(
+  targetDir: string,
+  fileName: string,
+  data: number[],
+): Promise<{ path: string; name: string }> {
+  return invoke("import_file", { targetDir, fileName, data });
+}
+
+export function importPaths(
+  targetDir: string,
+  sourcePaths: string[],
+): Promise<Array<{ path: string; name: string }>> {
+  return invoke("import_paths", { targetDir, sourcePaths });
+}
+
+export function resolveVaultAsset(
+  workspaceRoot: string,
+  currentFilePath: string,
+  target: string,
+): Promise<{ path: string; relative_path: string; file_kind: "image" | "pdf" } | null> {
+  return invoke("resolve_vault_asset", { workspaceRoot, currentFilePath, target });
+}
+
 export function deleteEntry(path: string): Promise<void> {
   return invoke("delete_entry", { path });
 }
 
 export function fileExists(path: string): Promise<boolean> {
   return invoke("file_exists", { path });
+}
+
+export function openPath(path: string): Promise<void> {
+  return invoke("open_path", { path });
 }
 
 export function revealInFileManager(path: string): Promise<void> {
@@ -206,4 +237,106 @@ export function saveClipboardImage(
   format: string,
 ): Promise<{ relative_path: string; absolute_path: string }> {
   return invoke("save_clipboard_image", { markdownFilePath, imageData, format });
+}
+
+export interface CommandOutput {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+export interface TerminalStartResult {
+  id: string;
+  cwd: string;
+  shell: string;
+}
+
+export interface TerminalDataEvent {
+  id: string;
+  stream: "stdout" | "stderr" | "exit";
+  data: string;
+}
+
+export interface AgentStartResult {
+  id: string;
+}
+
+export interface AgentDataEvent {
+  id: string;
+  stream: "stdout" | "stderr" | "exit";
+  data: string;
+  status: number | null;
+}
+
+export function gitStatus(): Promise<CommandOutput> {
+  return invoke("git_status");
+}
+
+export function gitInit(): Promise<CommandOutput> {
+  return invoke("git_init");
+}
+
+export function gitRemotes(): Promise<CommandOutput> {
+  return invoke("git_remotes");
+}
+
+export function gitAddRemote(name: string, url: string): Promise<CommandOutput> {
+  return invoke("git_add_remote", { name, url });
+}
+
+export function gitDiff(path?: string | null): Promise<CommandOutput> {
+  return invoke("git_diff", { path: path ?? null });
+}
+
+export function gitPull(): Promise<CommandOutput> {
+  return invoke("git_pull");
+}
+
+export function gitPush(): Promise<CommandOutput> {
+  return invoke("git_push");
+}
+
+export function gitCommitAll(message: string): Promise<CommandOutput> {
+  return invoke("git_commit_all", { message });
+}
+
+export function runAgentPrompt(
+  program: string,
+  args: string[],
+  prompt: string,
+): Promise<CommandOutput> {
+  return invoke("run_agent_prompt", { program, args, prompt });
+}
+
+export function agentStart(
+  id: string,
+  program: string,
+  args: string[],
+  prompt: string,
+): Promise<AgentStartResult> {
+  return invoke("agent_start", { id, program, args, prompt });
+}
+
+export function agentStop(id: string): Promise<void> {
+  return invoke("agent_stop", { id });
+}
+
+export function terminalStart(cols: number, rows: number): Promise<TerminalStartResult> {
+  return invoke("terminal_start", { cols, rows });
+}
+
+export function terminalWrite(id: string, data: string): Promise<void> {
+  return invoke("terminal_write", { id, data });
+}
+
+export function terminalResize(id: string, cols: number, rows: number): Promise<void> {
+  return invoke("terminal_resize", { id, cols, rows });
+}
+
+export function terminalStop(id: string): Promise<void> {
+  return invoke("terminal_stop", { id });
+}
+
+export function openWorkspaceTerminal(): Promise<void> {
+  return invoke("open_workspace_terminal");
 }

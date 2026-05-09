@@ -161,10 +161,11 @@ async function wikiLinkCompletions(context: CompletionContext): Promise<Completi
   if (!workspaceRoot) return null;
 
   const results = await tauri.fuzzySearch(query, 20);
-  if (results.length === 0) return null;
+  const noteResults = results.filter((result) => (result.file_kind ?? "markdown") === "markdown");
+  if (noteResults.length === 0) return null;
 
-  const options: Completion[] = results.map((r) => {
-    const insertText = canonicalWikiTarget(r, results);
+  const options: Completion[] = noteResults.map((r) => {
+    const insertText = canonicalWikiTarget(r, noteResults);
     const stem = getFileStem(r.filename);
     const relDir = r.relative_path.slice(0, r.relative_path.length - r.filename.length);
 

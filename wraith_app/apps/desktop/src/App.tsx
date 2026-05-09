@@ -7,6 +7,7 @@ import { useFileWatcher } from "./hooks/use-file-watcher";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useMenuEvents } from "./hooks/use-menu-events";
 import { useOpenDrop } from "./hooks/use-open-drop";
+import { useGitAutomation } from "./hooks/use-git-automation";
 import "./App.css";
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
   useKeyboardShortcuts();
   useMenuEvents();
   useOpenDrop();
+  useGitAutomation();
 
   if (!isStartupResolved) {
     return null;

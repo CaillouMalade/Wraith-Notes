@@ -78,6 +78,14 @@ export function openFileInNewTab(path: string) {
   return useEditorStore.getState().openFileInNewTab(path);
 }
 
+export function openAsset(path: string, fileKind: "image" | "pdf") {
+  useEditorStore.getState().openAsset(path, fileKind);
+}
+
+export function openAssetInNewTab(path: string, fileKind: "image" | "pdf") {
+  useEditorStore.getState().openAssetInNewTab(path, fileKind);
+}
+
 export function removePathReferences(path: string) {
   useEditorStore.getState().removePathReferences(path);
 }

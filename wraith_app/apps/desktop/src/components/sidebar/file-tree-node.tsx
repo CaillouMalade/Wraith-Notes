@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, type MouseEvent } from "react";
+import { memo, useEffect, useRef, type DragEvent, type MouseEvent } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { File02Icon, Folder01Icon, Folder02Icon } from "@hugeicons/core-free-icons";
 import { useIsActive, useResolvedDocumentTitle } from "@/hooks/use-tabs";
@@ -16,8 +16,20 @@ function FolderIcon({ isExpanded }: { isExpanded: boolean }) {
   );
 }
 
-function FileIcon() {
-  return <HugeiconsIcon icon={File02Icon} size={16} color="currentColor" strokeWidth={2} />;
+function FileIcon({ kind }: { kind: DirEntry["file_kind"] }) {
+  return (
+    <span
+      className={
+        kind === "image"
+          ? "text-[var(--accent)]"
+          : kind === "pdf"
+            ? "text-[var(--text-secondary)]"
+            : ""
+      }
+    >
+      <HugeiconsIcon icon={File02Icon} size={16} color="currentColor" strokeWidth={2} />
+    </span>
+  );
 }
 
 interface FileTreeNodeProps {
@@ -30,6 +42,7 @@ interface FileTreeNodeProps {
   onOpenFile: (path: string) => Promise<void>;
   onClick?: (event: MouseEvent<HTMLElement>, entry: DirEntry) => void;
   onContextMenu?: (event: MouseEvent<HTMLElement>, entry: DirEntry) => void;
+  onDropFiles?: (event: DragEvent<HTMLElement>, entry: DirEntry) => void;
   onRenameSubmit?: (entry: DirEntry, nextStem: string) => void;
   onRenameCancel?: () => void;
 }
@@ -44,6 +57,7 @@ export const FileTreeNode = memo(function FileTreeNode({
   onOpenFile,
   onClick,
   onContextMenu,
+  onDropFiles,
   onRenameSubmit,
   onRenameCancel,
 }: FileTreeNodeProps) {
@@ -51,7 +65,9 @@ export const FileTreeNode = memo(function FileTreeNode({
   const editorTitle = useResolvedDocumentTitle(entry.is_dir ? null : entry.path);
   const displayName = entry.is_dir
     ? entry.name
-    : editorTitle || entry.title || getFileStem(entry.name);
+    : entry.is_markdown
+      ? editorTitle || entry.title || getFileStem(entry.name)
+      : entry.name;
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus and select the stem when entering rename mode.
@@ -85,7 +101,6 @@ export const FileTreeNode = memo(function FileTreeNode({
   }
 
   function handleContextMenu(event: MouseEvent<HTMLElement>) {
-    if (!entry.is_dir && !entry.is_markdown) return;
     if (!onContextMenu) return;
     event.preventDefault();
     event.stopPropagation();
@@ -106,7 +121,7 @@ export const FileTreeNode = memo(function FileTreeNode({
           className="flex w-5 shrink-0 items-center justify-center text-[var(--fg-base)] opacity-[0.54]"
           aria-hidden="true"
         >
-          {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon />}
+          {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon kind={entry.file_kind} />}
         </span>
         <input
           ref={inputRef}
@@ -139,17 +154,24 @@ export const FileTreeNode = memo(function FileTreeNode({
     <button
       type="button"
       role="treeitem"
+      data-file-tree-path={entry.path}
+      data-file-tree-is-dir={entry.is_dir ? "true" : "false"}
       aria-selected={isActive}
       aria-expanded={entry.is_dir ? isExpanded : undefined}
       aria-label={entry.is_dir ? `${entry.name} folder` : displayName}
       onMouseDown={(e) => e.preventDefault()}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
+      onDragOver={(event) => {
+        if (!onDropFiles) return;
+        event.preventDefault();
+      }}
+      onDrop={(event) => onDropFiles?.(event, entry)}
       className={`flex h-[32px] w-full items-center gap-1.5 overflow-hidden rounded-lg pr-2 text-left text-[13px] leading-[1.15] ${toneClassName} ${bgClassName}`}
       style={{ paddingLeft: depth === 0 ? 10 : depth * 12 + 6 }}
     >
       <span className="flex w-5 shrink-0 items-center justify-center text-[var(--fg-base)] opacity-[0.54]">
-        {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon />}
+        {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon kind={entry.file_kind} />}
       </span>
       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
     </button>

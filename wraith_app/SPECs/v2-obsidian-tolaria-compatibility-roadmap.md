@@ -1149,6 +1149,13 @@ Exit criteria:
 - No private vault content committed.
 - Release path follows Wraith dev/release split.
 
+V2 ship decision, 2026-05-09:
+
+- Arthur accepted V2 with two explicit V3 follow-ups rather than holding V2 for them.
+- Image drag/drop into notes is deferred to V3. Current observed behavior: Finder image drops can insert an Obsidian embed placeholder, but the in-editor image preview path remains unstable and previously caused cursor/selection lockups when implemented as a replacement widget. Attempted fixes included native Tauri webview drag/drop wiring, importing dropped files to `attachments/`, inserting `![[attachments/name]]`, resolving through `resolve_vault_asset`, rendering image/PDF embed decorations, changing boundary selection handling, adding image-load failure states, and finally making embed previews non-invasive by rendering after the raw Markdown instead of replacing it. The result is not reliable enough to claim V2 support.
+- Split tabs are deferred to V3 polish. Current observed behavior: split view works, but tab/split interactions are finicky enough that they should not be treated as fully polished V2 UX.
+- For V2, users should rely on sidebar/tree asset importing plus normal asset browsing/opening, not note-body image drag/drop as a promised workflow.
+
 ## Validation Commands For Implementation Milestones
 
 Run from `wraith_app/` unless noted.

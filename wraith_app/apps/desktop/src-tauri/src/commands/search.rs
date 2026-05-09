@@ -3,6 +3,7 @@ use crate::state::{self, AppState, IndexedFile};
 use ignore::WalkBuilder;
 use parking_lot::Mutex;
 use serde::Serialize;
+use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,6 +15,7 @@ pub struct SearchResult {
     pub path: String,
     pub filename: String,
     pub relative_path: String,
+    pub file_kind: String,
     pub score: u32,
     pub match_indices: Vec<u32>,
 }
@@ -134,13 +136,14 @@ fn fuzzy_search_from(
                 path: file.path.to_string_lossy().to_string(),
                 filename: file.name.clone(),
                 relative_path: file.relative_path.clone(),
+                file_kind: file.file_kind.clone(),
                 score,
                 match_indices,
             })
         })
         .collect();
 
-    results.sort_by(|a, b| b.score.cmp(&a.score));
+    results.sort_by_key(|result| Reverse(result.score));
     results.truncate(limit);
     Ok(results)
 }
@@ -193,9 +196,10 @@ pub fn index_workspace_impl(
                     }
                     return ignore::WalkState::Continue;
                 }
-                if entry.file_type().is_some_and(|ft| ft.is_file())
-                    && entry.path().extension().and_then(|e| e.to_str()) == Some("md")
-                {
+                if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    let Some(file_kind) = indexed_file_kind(entry.path()) else {
+                        return ignore::WalkState::Continue;
+                    };
                     let rel = entry
                         .path()
                         .strip_prefix(&root)
@@ -206,6 +210,7 @@ pub fn index_workspace_impl(
                         path: entry.path().to_path_buf(),
                         relative_path: rel,
                         name: entry.file_name().to_string_lossy().to_string(),
+                        file_kind: file_kind.to_string(),
                     });
                 }
                 ignore::WalkState::Continue
@@ -215,6 +220,16 @@ pub fn index_workspace_impl(
     let indexed = Arc::try_unwrap(results).unwrap().into_inner();
     let dirs = state::rebuild_dirs_from_index(&indexed, &root);
     (indexed, dirs)
+}
+
+pub fn indexed_file_kind(path: &Path) -> Option<&'static str> {
+    let extension = path.extension().and_then(|e| e.to_str())?.to_lowercase();
+    match extension.as_str() {
+        "md" | "markdown" | "mdx" => Some("markdown"),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tiff" => Some("image"),
+        "pdf" => Some("pdf"),
+        _ => None,
+    }
 }
 
 /// Test-only convenience: run an uncancellable index.
@@ -251,6 +266,24 @@ mod tests {
         let dir = setup_workspace();
         let (index, _dirs) = index_workspace_test(dir.path());
         assert_eq!(index.len(), 3); // readme.md, notes.md, docs/guide.md
+    }
+
+    #[test]
+    fn test_index_workspace_includes_supported_assets() {
+        let dir = setup_workspace();
+        fs::create_dir(dir.path().join("assets")).unwrap();
+        fs::write(dir.path().join("assets").join("diagram.png"), "png").unwrap();
+        fs::write(dir.path().join("assets").join("manual.pdf"), "pdf").unwrap();
+
+        let (index, dirs) = index_workspace_test(dir.path());
+
+        assert!(index
+            .iter()
+            .any(|file| file.relative_path == "assets/diagram.png" && file.file_kind == "image"));
+        assert!(index
+            .iter()
+            .any(|file| file.relative_path == "assets/manual.pdf" && file.file_kind == "pdf"));
+        assert!(dirs.contains(&dir.path().join("assets")));
     }
 
     #[test]

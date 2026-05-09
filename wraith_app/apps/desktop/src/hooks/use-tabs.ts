@@ -76,6 +76,14 @@ export function useOpenFile() {
   return useEditorStore((s) => s.openFile);
 }
 
+export function useOpenAsset() {
+  return useEditorStore((s) => s.openAsset);
+}
+
+export function useOpenAssetInNewTab() {
+  return useEditorStore((s) => s.openAssetInNewTab);
+}
+
 export function useOpenNewTab() {
   return useEditorStore((s) => s.openNewTab);
 }
@@ -141,7 +149,12 @@ export function useFileSaveError(path: string | null) {
 }
 
 export function useIsActive(path: string) {
-  return useEditorStore((s) => s.activeFilePath === path);
+  return useEditorStore((s) => {
+    const activeTab = s.tabs.find((tab) => tab.id === s.activeTabId);
+    return activeTab
+      ? locationBehavior(activeTab.location).primaryPath(activeTab.location) === path
+      : false;
+  });
 }
 
 export function useTabCurrentPath(tabId: string) {
@@ -163,3 +176,5 @@ export function useOpenSettingsTab() {
   const openOrFocus = useOpenOrFocus();
   return () => openOrFocus((tab) => tab.location.kind === "settings", createSettingsTab);
 }
+
+export type { AssetFileKind } from "@/components/editor-area/page-kinds";

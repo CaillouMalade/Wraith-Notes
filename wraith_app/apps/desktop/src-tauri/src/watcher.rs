@@ -203,11 +203,11 @@ pub fn start_watcher(
                         let _ = handle.emit_to(label.clone(), "fs:file-changed", &payload);
 
                         // Update file index and dirs_with_markdown on create/delete
-                        let is_md = path.extension().and_then(|e| e.to_str()) == Some("md");
+                        let indexed_kind = crate::commands::search::indexed_file_kind(path);
 
                         match event.kind {
                             EventKind::Create(_) => {
-                                if is_md {
+                                if let Some(file_kind) = indexed_kind {
                                     let root = state.workspace_root.read().clone();
                                     if let Some(root) = root {
                                         let rel = path
@@ -223,6 +223,7 @@ pub fn start_watcher(
                                             path: path.clone(),
                                             relative_path: rel,
                                             name,
+                                            file_kind: file_kind.to_string(),
                                         });
 
                                         // Add ancestors to dirs_with_markdown
@@ -248,7 +249,7 @@ pub fn start_watcher(
                                 }
                             }
                             EventKind::Remove(_) => {
-                                if is_md {
+                                if indexed_kind.is_some() {
                                     state.file_index.write().retain(|f| f.path != *path);
 
                                     // Rebuild dirs_with_markdown from current index

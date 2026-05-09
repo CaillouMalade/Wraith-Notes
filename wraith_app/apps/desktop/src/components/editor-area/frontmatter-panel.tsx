@@ -1,5 +1,10 @@
-import { useCallback, useRef, type FocusEvent, type KeyboardEvent } from "react";
+import { useCallback, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { useFrontmatterEntries } from "./use-frontmatter-entries";
+import * as editorApi from "@/hooks/editor-api";
+import { getWorkspaceRoot } from "@/hooks/workspace-api";
+import { parseFrontmatterLinks, hasFrontmatterLinks } from "@/lib/frontmatter-links";
+import { resolveWikiLink } from "@/lib/wiki-links";
+import * as tauri from "@/lib/tauri";
 import type { YamlEntry } from "@/lib/yaml-entries";
 
 interface FrontmatterPanelProps {
@@ -24,6 +29,7 @@ function FrontmatterRow({
   onKeyDown,
 }: FrontmatterRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const [isValueFocused, setIsValueFocused] = useState(false);
 
   // Autofocus the key input only for placeholder rows — i.e. a seeded empty row
   // on fresh panel mount, or a new row appended via Add Property. React evaluates
@@ -37,10 +43,23 @@ function FrontmatterRow({
     (e: FocusEvent<HTMLInputElement>) => {
       const next = e.relatedTarget as Node | null;
       if (next && rowRef.current?.contains(next)) return;
+      setIsValueFocused(false);
       onBlur(index);
     },
     [index, onBlur],
   );
+
+  const showValueLinks = !isValueFocused && hasFrontmatterLinks(entry.value);
+  const valueParts = showValueLinks ? parseFrontmatterLinks(entry.value) : [];
+
+  const followFrontmatterLink = useCallback(async (raw: string) => {
+    const workspaceRoot = getWorkspaceRoot();
+    if (!workspaceRoot) return;
+    const target = await resolveWikiLink(raw, workspaceRoot, tauri.fuzzySearch, tauri.fileExists);
+    if (target.kind === "internal") {
+      await editorApi.navigateToFile(target.path);
+    }
+  }, []);
 
   return (
     <div
@@ -60,17 +79,43 @@ function FrontmatterRow({
         className="w-36 shrink-0 bg-transparent text-[13px] leading-[1.15] text-[var(--text-muted)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
       />
 
-      <input
-        data-field="value"
-        type="text"
-        value={entry.value}
-        onChange={(e) => onUpdate(index, "value", e.target.value)}
-        onKeyDown={(e) => onKeyDown(e, index, "value")}
-        onBlur={handleBlur}
-        placeholder="value"
-        spellCheck={false}
-        className="min-w-0 flex-1 bg-transparent text-[13px] leading-[1.15] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
-      />
+      <div className="relative min-w-0 flex-1">
+        {showValueLinks && (
+          <div className="pointer-events-none absolute inset-0 flex min-w-0 items-center gap-1 overflow-hidden text-[13px] leading-[1.15] text-[var(--text-primary)]">
+            {valueParts.map((part, partIndex) =>
+              part.kind === "text" ? (
+                <span key={partIndex} className="whitespace-pre">
+                  {part.text}
+                </span>
+              ) : (
+                <button
+                  key={partIndex}
+                  type="button"
+                  className="pointer-events-auto max-w-[12rem] truncate rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[12px] text-[var(--accent)] hover:bg-[var(--surface-selected)]"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    void followFrontmatterLink(part.raw);
+                  }}
+                >
+                  {part.label}
+                </button>
+              ),
+            )}
+          </div>
+        )}
+        <input
+          data-field="value"
+          type="text"
+          value={entry.value}
+          onFocus={() => setIsValueFocused(true)}
+          onChange={(e) => onUpdate(index, "value", e.target.value)}
+          onKeyDown={(e) => onKeyDown(e, index, "value")}
+          onBlur={handleBlur}
+          placeholder="value"
+          spellCheck={false}
+          className={`min-w-0 flex-1 bg-transparent text-[13px] leading-[1.15] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70 ${showValueLinks ? "opacity-0" : ""}`}
+        />
+      </div>
 
       <button
         type="button"

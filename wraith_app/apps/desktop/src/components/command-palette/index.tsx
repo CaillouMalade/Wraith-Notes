@@ -22,6 +22,7 @@ import {
   useActiveTabId,
   useCloseActiveTab,
   useCloseTab,
+  useOpenAsset,
   useOpenFile,
   useOpenSettingsTab,
   useOpenTabs,
@@ -29,6 +30,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { useFuzzySearch } from "./use-fuzzy-search";
 import { settingsKind } from "@/components/editor-area/page-kinds/settings";
+import { useUIStore } from "@/stores/ui-store";
 import { getFileName } from "@/lib/paths";
 import * as tauri from "@/lib/tauri";
 
@@ -48,12 +50,15 @@ export function CommandPalette() {
   const { toggleSidebar } = useSidebar();
   const { root, isIndexing, openWorkspace, closeWorkspace } = useWorkspace();
   const openFile = useOpenFile();
+  const openAsset = useOpenAsset();
   const closeActiveTab = useCloseActiveTab();
   const closeTab = useCloseTab();
   const activeTabId = useActiveTabId();
   const tabs = useOpenTabs();
   const { toggleTheme } = useTheme();
   const openSettingsTab = useOpenSettingsTab();
+  const toggleRightSidebar = useUIStore((state) => state.toggleRightSidebar);
+  const toggleSplitView = useUIStore((state) => state.toggleSplitView);
 
   const isCreateIntent = intent === "create-file";
   const trimmedSearch = search.trim();
@@ -65,8 +70,12 @@ export function CommandPalette() {
     return text.toLowerCase().includes(q.toLowerCase());
   }
 
-  function handleSelect(path: string) {
-    void openFile(path);
+  function handleSelect(result: SearchResult) {
+    if (result.file_kind === "image" || result.file_kind === "pdf") {
+      openAsset(result.path, result.file_kind);
+    } else {
+      void openFile(result.path);
+    }
     close();
   }
 
@@ -97,6 +106,24 @@ export function CommandPalette() {
       description: "Command",
       run: () => {
         toggleSidebar();
+        close();
+      },
+    },
+    root && {
+      id: "toggle-right-sidebar",
+      label: "Toggle Right Sidebar",
+      description: "Command",
+      run: () => {
+        toggleRightSidebar();
+        close();
+      },
+    },
+    root && {
+      id: "toggle-split-view",
+      label: "Toggle Split View",
+      description: "Command",
+      run: () => {
+        toggleSplitView();
         close();
       },
     },
@@ -191,6 +218,12 @@ export function CommandPalette() {
     );
   }
 
+  function resultDescription(result: SearchResult) {
+    if (result.file_kind === "image") return "Image";
+    if (result.file_kind === "pdf") return "PDF";
+    return "Open file";
+  }
+
   const placeholder = isCreateIntent ? "Create a new note..." : "Search...";
 
   return (
@@ -241,11 +274,11 @@ export function CommandPalette() {
                 ))}
 
                 {visibleFiles.map((r) => (
-                  <CommandItem key={r.path} value={r.path} onSelect={() => handleSelect(r.path)}>
+                  <CommandItem key={r.path} value={r.path} onSelect={() => handleSelect(r)}>
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate">{getFileName(r.path)}</span>
                       <span className="truncate text-[13px] text-text-muted">
-                        {renderHighlightedPath(r.relative_path, r.match_indices)}
+                        {resultDescription(r)} - {renderHighlightedPath(r.relative_path, r.match_indices)}
                       </span>
                     </div>
                   </CommandItem>

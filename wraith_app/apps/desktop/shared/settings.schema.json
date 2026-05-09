@@ -285,6 +285,150 @@
       "category": "Search",
       "type": "number",
       "default": 50
+    },
+    {
+      "key": "git.auto-pull-enabled",
+      "label": "Auto Pull",
+      "description": "Pull from the configured Git remote on an interval when the working tree is clean",
+      "category": "Git",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "git.auto-pull-interval-minutes",
+      "label": "Auto Pull Interval",
+      "description": "Minutes between automatic pull checks",
+      "category": "Git",
+      "type": "number",
+      "default": 5
+    },
+    {
+      "key": "git.autogit-enabled",
+      "label": "AutoGit",
+      "description": "Automatically create conservative Git checkpoints after editing pauses or when the app becomes inactive",
+      "category": "Git",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "key": "git.autogit-idle-threshold-seconds",
+      "label": "AutoGit Idle Threshold",
+      "description": "Seconds to wait after editing pauses before creating an automatic checkpoint",
+      "category": "Git",
+      "type": "number",
+      "default": 90
+    },
+    {
+      "key": "git.autogit-inactive-threshold-seconds",
+      "label": "AutoGit Inactive Grace",
+      "description": "Seconds to wait after the app becomes inactive before creating an automatic checkpoint",
+      "category": "Git",
+      "type": "number",
+      "default": 30
+    },
+    {
+      "key": "shortcuts.search",
+      "label": "Search",
+      "description": "Open the search palette",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+P"
+    },
+    {
+      "key": "shortcuts.command-palette",
+      "label": "Command Palette",
+      "description": "Open commands and search",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+Shift+P"
+    },
+    {
+      "key": "shortcuts.new-note",
+      "label": "New Note",
+      "description": "Create a new Markdown note",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+N"
+    },
+    {
+      "key": "shortcuts.go-to-file",
+      "label": "Go to File",
+      "description": "Search for a file in the current workspace",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+O"
+    },
+    {
+      "key": "shortcuts.new-tab",
+      "label": "New Tab",
+      "description": "Open a blank tab",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+T"
+    },
+    {
+      "key": "shortcuts.close-tab",
+      "label": "Close Tab",
+      "description": "Close the active tab",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+W"
+    },
+    {
+      "key": "shortcuts.toggle-sidebar",
+      "label": "Toggle Left Sidebar",
+      "description": "Show or hide the file tree",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+\\"
+    },
+    {
+      "key": "shortcuts.toggle-right-sidebar",
+      "label": "Toggle Right Sidebar",
+      "description": "Show or hide the right sidebar",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+Shift+\\"
+    },
+    {
+      "key": "shortcuts.toggle-split-view",
+      "label": "Toggle Split View",
+      "description": "Show or hide the second center pane",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Mod+Shift+S"
+    },
+    {
+      "key": "shortcuts.navigate-back",
+      "label": "Back",
+      "description": "Move back in the active tab history",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Alt+ArrowLeft"
+    },
+    {
+      "key": "shortcuts.navigate-forward",
+      "label": "Forward",
+      "description": "Move forward in the active tab history",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Alt+ArrowRight"
+    },
+    {
+      "key": "shortcuts.next-tab",
+      "label": "Next Tab",
+      "description": "Activate the next tab",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Ctrl+Tab"
+    },
+    {
+      "key": "shortcuts.previous-tab",
+      "label": "Previous Tab",
+      "description": "Activate the previous tab",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": "Ctrl+Shift+Tab"
     }
   ]
 }

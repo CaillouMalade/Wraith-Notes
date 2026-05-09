@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUIStore } from "@/stores/ui-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toggleSidebar } from "@/hooks/use-sidebar";
+import { eventMatchesShortcut, getShortcutValue, type ShortcutSettingKey } from "@/lib/keyboard-shortcuts";
 
 function isEditableTargetFocused(): boolean {
   const active = document.activeElement;
@@ -17,6 +19,9 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
+      const settings = useSettingsStore.getState().settings;
+      const matches = (key: ShortcutSettingKey) =>
+        eventMatchesShortcut(e, getShortcutValue(settings, key));
 
       // Read current state at event time
       const { openCommandPalette } = useUIStore.getState();
@@ -33,67 +38,87 @@ export function useKeyboardShortcuts() {
 
       // Alt+Arrow: history navigation when no editable target is focused;
       // inside the editor, let CodeMirror handle word-wise cursor motion.
-      if (e.altKey && !e.shiftKey && e.key === "ArrowLeft" && !isEditableTargetFocused()) {
+      if (matches("shortcuts.navigate-back") && !isEditableTargetFocused()) {
         e.preventDefault();
         void navigateBack();
         return;
       }
 
-      if (e.altKey && !e.shiftKey && e.key === "ArrowRight" && !isEditableTargetFocused()) {
+      if (matches("shortcuts.navigate-forward") && !isEditableTargetFocused()) {
         e.preventDefault();
         void navigateForward();
         return;
       }
 
       // Cmd+P / Cmd+Shift+P — unified search (files + commands)
-      if (mod && (e.key === "p" || e.key === "P")) {
+      if (matches("shortcuts.search")) {
         e.preventDefault();
-        if (e.shiftKey || root) openCommandPalette("search");
+        if (root) openCommandPalette("search");
+        return;
+      }
+
+      if (matches("shortcuts.command-palette")) {
+        e.preventDefault();
+        openCommandPalette("search");
         return;
       }
 
       // Cmd+W — close current tab
-      if (mod && e.key === "w") {
+      if (matches("shortcuts.close-tab")) {
         e.preventDefault();
         if (activeTabId) closeActiveTab();
         return;
       }
 
       // Cmd+\ — toggle sidebar
-      if (mod && e.key === "\\") {
+      if (matches("shortcuts.toggle-right-sidebar")) {
+        e.preventDefault();
+        useUIStore.getState().toggleRightSidebar();
+        return;
+      }
+
+      if (matches("shortcuts.toggle-sidebar")) {
         e.preventDefault();
         toggleSidebar();
         return;
       }
 
       // Cmd+N — create new note
-      if (mod && e.key === "n") {
+      if (matches("shortcuts.new-note")) {
         e.preventDefault();
         if (root) openCommandPalette("create-file");
         return;
       }
 
       // Cmd+O — go to file
-      if (mod && e.key === "o") {
+      if (matches("shortcuts.go-to-file")) {
         e.preventDefault();
         if (root) openCommandPalette("search");
         return;
       }
 
       // Cmd+T — new tab
-      if (mod && e.key === "t") {
+      if (matches("shortcuts.new-tab")) {
         e.preventDefault();
         if (root) openNewTab();
         return;
       }
 
+      // Cmd+Shift+S — split center editor area
+      if (matches("shortcuts.toggle-split-view")) {
+        e.preventDefault();
+        useUIStore.getState().toggleSplitView();
+        return;
+      }
+
       // Ctrl+Tab / Ctrl+Shift+Tab — cycle tabs
-      if (e.ctrlKey && e.key === "Tab") {
+      if (matches("shortcuts.next-tab") || matches("shortcuts.previous-tab")) {
         e.preventDefault();
         if (tabs.length === 0 || !activeTabId) return;
         const idx = tabs.findIndex((tab) => tab.id === activeTabId);
         if (idx === -1) return;
-        const next = e.shiftKey ? (idx - 1 + tabs.length) % tabs.length : (idx + 1) % tabs.length;
+        const previous = matches("shortcuts.previous-tab");
+        const next = previous ? (idx - 1 + tabs.length) % tabs.length : (idx + 1) % tabs.length;
         setActiveTab(tabs[next]!.id);
         return;
       }

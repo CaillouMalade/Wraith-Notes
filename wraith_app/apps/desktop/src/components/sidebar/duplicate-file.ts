@@ -54,8 +54,13 @@ async function resolveDuplicatePath(sourcePath: string): Promise<string> {
  *
  * Returns the new file path on success.
  */
-export async function duplicateFile(sourcePath: string): Promise<string> {
+export async function duplicateFile(sourcePath: string, options?: { binary?: boolean }): Promise<string> {
   const targetPath = await resolveDuplicatePath(sourcePath);
+
+  if (options?.binary) {
+    await tauri.copyFile(sourcePath, targetPath);
+    return targetPath;
+  }
 
   const openFile = getOpenFile(sourcePath);
   let content: string;

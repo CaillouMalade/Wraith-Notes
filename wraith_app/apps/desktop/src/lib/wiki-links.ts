@@ -1,4 +1,9 @@
-import { getFileStem, normalizePath } from "./paths";
+import { getFileExtension, getFileStem, normalizePath } from "./paths";
+import {
+  createVaultEntryIndex,
+  resolveBodyWikilinkTarget,
+  type VaultEntry,
+} from "./vault-targets";
 import type { SearchResult } from "@/types/fs";
 
 export type WikiLinkTarget = { kind: "internal"; path: string } | { kind: "unresolved" };
@@ -103,19 +108,41 @@ export async function resolveWikiLink(
         return { kind: "internal", path: fullPath };
       }
     }
-    return { kind: "unresolved" };
   }
 
-  // Stem lookup: find all files whose stem matches (case-insensitive)
-  const results = await fuzzySearch(target, 50);
+  const searchQuery = target.includes("/") ? getFileStem(target) : target;
+  const entries = ((await fuzzySearch(searchQuery, 50)) ?? []).map(searchResultToVaultEntry);
+  const resolved = resolveBodyWikilinkTarget(raw, {
+    workspaceRoot,
+    currentFilePath: currentFilePath ?? null,
+    entries: createVaultEntryIndex(entries),
+  });
+  if (resolved.kind === "resolved-note" || resolved.kind === "same-file-fragment") {
+    return { kind: "internal", path: resolved.path };
+  }
+
   const targetLower = target.toLowerCase();
-  const exactMatches = results.filter((r) => getFileStem(r.filename).toLowerCase() === targetLower);
+  const exactMatches = entries.filter(
+    (entry) => entry.kind === "note" && entry.stem.toLowerCase() === targetLower,
+  );
 
   if (exactMatches.length === 1) {
     return { kind: "internal", path: exactMatches[0].path };
   }
 
   return { kind: "unresolved" };
+}
+
+function searchResultToVaultEntry(result: SearchResult): VaultEntry {
+  const fileKind = result.file_kind ?? "markdown";
+  return {
+    path: result.path,
+    relativePath: result.relative_path,
+    name: result.filename,
+    stem: getFileStem(result.filename),
+    extension: getFileExtension(result.filename).toLowerCase(),
+    kind: fileKind === "image" || fileKind === "pdf" ? fileKind : "note",
+  };
 }
 
 /**

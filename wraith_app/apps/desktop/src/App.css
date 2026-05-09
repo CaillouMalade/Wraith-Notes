@@ -287,3 +287,30 @@ input {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+.right-sidebar-button {
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-subtle);
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.right-sidebar-button:hover {
+  background: var(--surface-selected);
+}
+
+.right-sidebar-button:disabled {
+  opacity: 0.5;
+}
+
+.xterm {
+  height: 100%;
+}
+
+.xterm .xterm-viewport,
+.xterm .xterm-screen {
+  background: transparent !important;
+}

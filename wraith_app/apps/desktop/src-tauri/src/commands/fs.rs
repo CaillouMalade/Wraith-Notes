@@ -14,6 +14,7 @@ pub struct DirEntry {
     pub path: String,
     pub is_dir: bool,
     pub is_markdown: bool,
+    pub file_kind: String,
     pub modified_at: u64,
     /// Document title extracted from frontmatter `title:` or leading `# ` heading.
     /// `None` for directories or files without a recognizable title.
@@ -31,6 +32,19 @@ pub struct FileContent {
 pub struct WriteResult {
     pub path: String,
     pub modified_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportResult {
+    pub path: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ResolveAssetResult {
+    pub path: String,
+    pub relative_path: String,
+    pub file_kind: String,
 }
 
 async fn blocking<T: Send + 'static>(
@@ -116,11 +130,95 @@ fn modified_time(path: &std::path::Path) -> u64 {
         .unwrap_or(0)
 }
 
-/// Recursively checks if a directory contains at least one visible .md file.
+fn safe_import_name(name: &str) -> String {
+    let cleaned = name
+        .replace(['/', '\\', ':'], "-")
+        .trim()
+        .trim_start_matches('.')
+        .to_string();
+    if cleaned.is_empty() {
+        "Imported file".to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn unique_child_path(parent: &Path, name: &str) -> PathBuf {
+    let safe_name = safe_import_name(name);
+    let first = parent.join(&safe_name);
+    if !first.exists() {
+        return first;
+    }
+
+    let path = Path::new(&safe_name);
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Imported file");
+    let ext = path.extension().and_then(|e| e.to_str());
+
+    for n in 2..1000 {
+        let candidate_name = match ext {
+            Some(ext) => format!("{stem} {n}.{ext}"),
+            None => format!("{stem} {n}"),
+        };
+        let candidate = parent.join(candidate_name);
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+
+    parent.join(format!("{} {}", safe_name, uuid::Uuid::new_v4()))
+}
+
+fn supported_file_kind(path: &Path) -> Option<&'static str> {
+    let extension = path.extension().and_then(|e| e.to_str())?.to_lowercase();
+    match extension.as_str() {
+        "md" | "markdown" | "mdx" => Some("markdown"),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "tiff" => Some("image"),
+        "pdf" => Some("pdf"),
+        _ => None,
+    }
+}
+
+fn normalize_rel(path: &Path, root: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn collect_supported_assets(root: &Path) -> Vec<PathBuf> {
+    let mut assets = Vec::new();
+    let Ok(entries) = fs::read_dir(root) else {
+        return assets;
+    };
+
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || name == "node_modules" {
+            continue;
+        }
+        if file_type.is_dir() {
+            assets.extend(collect_supported_assets(&path));
+        } else if file_type.is_file() && matches!(supported_file_kind(&path), Some("image" | "pdf"))
+        {
+            assets.push(path);
+        }
+    }
+
+    assets
+}
+
+/// Recursively checks if a directory contains at least one visible supported file.
 /// Used as fallback before the index is ready. Skips paths matched by the
 /// workspace ignore matcher so ignored directories don't resurrect their
 /// parent in the sidebar.
-fn dir_contains_markdown_recursive(path: &Path, ignore: Option<&WorkspaceIgnore>) -> bool {
+fn dir_contains_supported_file_recursive(path: &Path, ignore: Option<&WorkspaceIgnore>) -> bool {
     let Ok(entries) = fs::read_dir(path) else {
         return false;
     };
@@ -136,10 +234,10 @@ fn dir_contains_markdown_recursive(path: &Path, ignore: Option<&WorkspaceIgnore>
         }
 
         if ft.is_file() {
-            if entry_path.extension().and_then(|e| e.to_str()) == Some("md") {
+            if supported_file_kind(&entry_path).is_some() {
                 return true;
             }
-        } else if ft.is_dir() && dir_contains_markdown_recursive(&entry_path, ignore) {
+        } else if ft.is_dir() && dir_contains_supported_file_recursive(&entry_path, ignore) {
             return true;
         }
     }
@@ -147,10 +245,15 @@ fn dir_contains_markdown_recursive(path: &Path, ignore: Option<&WorkspaceIgnore>
 }
 
 /// O(1) check via the pre-built set, with recursive fallback during initial indexing.
-fn dir_contains_markdown(path: &Path, state: Option<&WorkspaceState>) -> bool {
+fn dir_contains_supported_file(path: &Path, state: Option<&WorkspaceState>) -> bool {
     if let Some(state) = state {
         if state.index_ready.load(Ordering::Relaxed) {
-            return state.dirs_with_markdown.read().contains(path);
+            if state.dirs_with_markdown.read().contains(path) {
+                return true;
+            }
+            let ignore_arc: Option<Arc<WorkspaceIgnore>> =
+                state.workspace_ignore.read().as_ref().map(Arc::clone);
+            return dir_contains_supported_file_recursive(path, ignore_arc.as_deref());
         }
         // Snapshot the `Arc<WorkspaceIgnore>` under a brief read lock and
         // release immediately — the recursive fallback below does file I/O
@@ -158,9 +261,9 @@ fn dir_contains_markdown(path: &Path, state: Option<&WorkspaceState>) -> bool {
         // concurrent workspace switch's `workspace_ignore.write()`).
         let ignore_arc: Option<Arc<WorkspaceIgnore>> =
             state.workspace_ignore.read().as_ref().map(Arc::clone);
-        return dir_contains_markdown_recursive(path, ignore_arc.as_deref());
+        return dir_contains_supported_file_recursive(path, ignore_arc.as_deref());
     }
-    dir_contains_markdown_recursive(path, None)
+    dir_contains_supported_file_recursive(path, None)
 }
 
 pub fn read_directory_impl(
@@ -204,25 +307,31 @@ pub fn read_directory_impl(
         }
 
         if file_type.is_dir() {
-            if dir_contains_markdown(&entry_path, state) {
+            if dir_contains_supported_file(&entry_path, state) {
                 dirs.push(DirEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: true,
                     is_markdown: false,
+                    file_kind: "directory".to_string(),
                     modified_at: modified_time(&entry_path),
                     title: None,
                 });
             }
         } else if file_type.is_file() {
-            let is_markdown = entry_path.extension().and_then(|e| e.to_str()) == Some("md");
-            if is_markdown {
-                let title = extract_title(&entry_path);
+            if let Some(file_kind) = supported_file_kind(&entry_path) {
+                let is_markdown = file_kind == "markdown";
+                let title = if is_markdown {
+                    extract_title(&entry_path)
+                } else {
+                    None
+                };
                 files.push(DirEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: false,
-                    is_markdown: true,
+                    is_markdown,
+                    file_kind: file_kind.to_string(),
                     modified_at: modified_time(&entry_path),
                     title,
                 });
@@ -231,8 +340,8 @@ pub fn read_directory_impl(
     }
 
     // Sort dirs-first, then alphabetical within each group
-    dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    dirs.sort_by_key(|a| a.name.to_lowercase());
+    files.sort_by_key(|a| a.name.to_lowercase());
     dirs.extend(files);
     Ok(dirs)
 }
@@ -336,6 +445,7 @@ pub fn create_directory_impl(path: &str) -> Result<DirEntry, AppError> {
         path: path.to_string(),
         is_dir: true,
         is_markdown: false,
+        file_kind: "directory".to_string(),
         modified_at: modified_time(&dir_path),
         title: None,
     })
@@ -364,6 +474,231 @@ pub async fn rename_entry(old_path: String, new_path: String) -> Result<(), AppE
     blocking(move || rename_entry_impl(&old_path, &new_path)).await
 }
 
+pub fn copy_file_impl(source_path: &str, target_path: &str) -> Result<(), AppError> {
+    let source = PathBuf::from(source_path);
+    if !source.exists() {
+        return Err(AppError::NotFound(source_path.to_string()));
+    }
+    if !source.is_file() {
+        return Err(AppError::Io(format!("Not a file: {}", source_path)));
+    }
+
+    let target = PathBuf::from(target_path);
+    if target.exists() {
+        return Err(AppError::AlreadyExists(target_path.to_string()));
+    }
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(source, target)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn copy_file(source_path: String, target_path: String) -> Result<(), AppError> {
+    blocking(move || copy_file_impl(&source_path, &target_path)).await
+}
+
+pub fn import_file_impl(
+    target_dir: &str,
+    file_name: &str,
+    data: Vec<u8>,
+) -> Result<ImportResult, AppError> {
+    let dir = PathBuf::from(target_dir);
+    if !dir.exists() {
+        fs::create_dir_all(&dir)?;
+    }
+    if !dir.is_dir() {
+        return Err(AppError::Io(format!("Not a directory: {}", target_dir)));
+    }
+
+    let path = unique_child_path(&dir, file_name);
+    fs::write(&path, data)?;
+    Ok(ImportResult {
+        name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| file_name.to_string()),
+        path: path.to_string_lossy().to_string(),
+    })
+}
+
+fn copy_dir_recursive(source: &Path, target: &Path) -> Result<(), AppError> {
+    fs::create_dir_all(target)?;
+
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let target_path = target.join(entry.file_name());
+        let file_type = entry.file_type()?;
+
+        if file_type.is_dir() {
+            copy_dir_recursive(&source_path, &target_path)?;
+        } else if file_type.is_file() {
+            fs::copy(&source_path, &target_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn import_paths_impl(
+    target_dir: &str,
+    source_paths: Vec<String>,
+) -> Result<Vec<ImportResult>, AppError> {
+    let dir = PathBuf::from(target_dir);
+    if !dir.exists() {
+        fs::create_dir_all(&dir)?;
+    }
+    if !dir.is_dir() {
+        return Err(AppError::Io(format!("Not a directory: {}", target_dir)));
+    }
+
+    let target_canonical = fs::canonicalize(&dir)?;
+    let mut results = Vec::new();
+
+    for source in source_paths {
+        let source_path = PathBuf::from(&source);
+        if !source_path.exists() {
+            return Err(AppError::NotFound(source));
+        }
+
+        let source_canonical = fs::canonicalize(&source_path)?;
+        if source_canonical == target_canonical || target_canonical.starts_with(&source_canonical) {
+            return Err(AppError::Io(format!(
+                "Cannot import a folder into itself: {}",
+                source_path.to_string_lossy()
+            )));
+        }
+
+        let name = source_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Imported file");
+        let target_path = unique_child_path(&dir, name);
+
+        if source_path.is_dir() {
+            copy_dir_recursive(&source_path, &target_path)?;
+        } else if source_path.is_file() {
+            fs::copy(&source_path, &target_path)?;
+        } else {
+            continue;
+        }
+
+        results.push(ImportResult {
+            name: target_path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_else(|| name.to_string()),
+            path: target_path.to_string_lossy().to_string(),
+        });
+    }
+
+    Ok(results)
+}
+
+#[tauri::command]
+pub async fn import_file(
+    target_dir: String,
+    file_name: String,
+    data: Vec<u8>,
+) -> Result<ImportResult, AppError> {
+    blocking(move || import_file_impl(&target_dir, &file_name, data)).await
+}
+
+#[tauri::command]
+pub async fn import_paths(
+    target_dir: String,
+    source_paths: Vec<String>,
+) -> Result<Vec<ImportResult>, AppError> {
+    blocking(move || import_paths_impl(&target_dir, source_paths)).await
+}
+
+pub fn resolve_vault_asset_impl(
+    workspace_root: &str,
+    current_file_path: &str,
+    target: &str,
+) -> Result<Option<ResolveAssetResult>, AppError> {
+    let root = PathBuf::from(workspace_root);
+    let current_dir = PathBuf::from(current_file_path)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| root.clone());
+    let normalized = target
+        .trim()
+        .replace('\\', "/")
+        .trim_start_matches('/')
+        .to_string();
+    if normalized.is_empty() {
+        return Ok(None);
+    }
+
+    let mut candidates = Vec::new();
+    candidates.push(root.join(&normalized));
+    candidates.push(current_dir.join(&normalized));
+
+    let target_name = Path::new(&normalized)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(&normalized);
+    for dir in ["attachments", "Attachments", "assets", "Assets"] {
+        candidates.push(root.join(dir).join(target_name));
+    }
+    if let Some(stem) = Path::new(current_file_path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+    {
+        candidates.push(current_dir.join(format!("{stem}-assets")).join(target_name));
+    }
+
+    for candidate in candidates {
+        if candidate.exists() && matches!(supported_file_kind(&candidate), Some("image" | "pdf")) {
+            let kind = supported_file_kind(&candidate).unwrap_or("image");
+            return Ok(Some(ResolveAssetResult {
+                relative_path: normalize_rel(&candidate, &root),
+                path: candidate.to_string_lossy().to_string(),
+                file_kind: kind.to_string(),
+            }));
+        }
+    }
+
+    let normalized_lower = normalized.to_lowercase();
+    let target_name_lower = target_name.to_lowercase();
+    let matches: Vec<PathBuf> = collect_supported_assets(&root)
+        .into_iter()
+        .filter(|asset| {
+            let rel = normalize_rel(asset, &root).to_lowercase();
+            rel == normalized_lower
+                || rel.ends_with(&format!("/{normalized_lower}"))
+                || asset
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.to_lowercase() == target_name_lower)
+        })
+        .collect();
+
+    if matches.len() == 1 {
+        let path = matches[0].clone();
+        let kind = supported_file_kind(&path).unwrap_or("image");
+        return Ok(Some(ResolveAssetResult {
+            relative_path: normalize_rel(&path, &root),
+            path: path.to_string_lossy().to_string(),
+            file_kind: kind.to_string(),
+        }));
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
+pub async fn resolve_vault_asset(
+    workspace_root: String,
+    current_file_path: String,
+    target: String,
+) -> Result<Option<ResolveAssetResult>, AppError> {
+    blocking(move || resolve_vault_asset_impl(&workspace_root, &current_file_path, &target)).await
+}
+
 pub fn delete_entry_impl(path: &str) -> Result<(), AppError> {
     let entry_path = PathBuf::from(path);
     if !entry_path.exists() {
@@ -383,6 +718,44 @@ pub async fn file_exists(path: String) -> bool {
     tauri::async_runtime::spawn_blocking(move || PathBuf::from(&path).exists())
         .await
         .unwrap_or(false)
+}
+
+pub fn open_path_impl(path: &str) -> Result<(), AppError> {
+    let target = PathBuf::from(path);
+    if !target.exists() {
+        return Err(AppError::NotFound(path.to_string()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&target)
+            .spawn()
+            .map_err(|e| AppError::Io(e.to_string()))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &target.to_string_lossy()])
+            .spawn()
+            .map_err(|e| AppError::Io(e.to_string()))?;
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&target)
+            .spawn()
+            .map_err(|e| AppError::Io(e.to_string()))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_path(path: String) -> Result<(), AppError> {
+    blocking(move || open_path_impl(&path)).await
 }
 
 pub fn reveal_in_file_manager_impl(path: &str) -> Result<(), AppError> {
@@ -440,11 +813,20 @@ mod tests {
         // Create some markdown files
         fs::write(dir.path().join("hello.md"), "# Hello").unwrap();
         fs::write(dir.path().join("world.md"), "# World").unwrap();
+        fs::write(dir.path().join("image.png"), "not a real png").unwrap();
+        fs::write(dir.path().join("manual.pdf"), "not a real pdf").unwrap();
         // Create a non-markdown file (should be filtered)
         fs::write(dir.path().join("readme.txt"), "text").unwrap();
         // Create a subdirectory with markdown
         fs::create_dir(dir.path().join("notes")).unwrap();
         fs::write(dir.path().join("notes").join("note.md"), "# Note").unwrap();
+        // Create a subdirectory with only supported assets
+        fs::create_dir(dir.path().join("assets")).unwrap();
+        fs::write(
+            dir.path().join("assets").join("photo.webp"),
+            "not a real webp",
+        )
+        .unwrap();
         // Create a subdirectory without markdown (should be filtered)
         fs::create_dir(dir.path().join("empty")).unwrap();
         fs::write(dir.path().join("empty").join("data.txt"), "data").unwrap();
@@ -456,29 +838,38 @@ mod tests {
         let dir = setup_test_dir();
         let result = read_directory_impl(&dir.path().to_string_lossy(), None).unwrap();
 
-        // First entry should be the dir (notes), then files
+        // First entries should be directories, then files
         assert!(result[0].is_dir);
-        assert_eq!(result[0].name, "notes");
+        assert_eq!(result[0].name, "assets");
         assert!(result[0].title.is_none());
-        // Remaining should be files, sorted alphabetically
-        assert!(!result[1].is_dir);
-        assert_eq!(result[1].name, "hello.md");
-        assert_eq!(result[1].title.as_deref(), Some("Hello"));
+        assert!(result[1].is_dir);
+        assert_eq!(result[1].name, "notes");
+        assert!(result[1].title.is_none());
+        // Remaining should be files, sorted alphabetically.
         assert!(!result[2].is_dir);
-        assert_eq!(result[2].name, "world.md");
-        assert_eq!(result[2].title.as_deref(), Some("World"));
+        assert_eq!(result[2].name, "hello.md");
+        assert_eq!(result[2].title.as_deref(), Some("Hello"));
     }
 
     #[test]
-    fn test_read_directory_filters_markdown_only() {
+    fn test_read_directory_filters_to_supported_files() {
         let dir = setup_test_dir();
         let result = read_directory_impl(&dir.path().to_string_lossy(), None).unwrap();
 
-        // Should have: notes/ dir, hello.md, world.md (3 total)
-        // NOT: readme.txt, empty/ dir
-        assert_eq!(result.len(), 3);
+        // Should include supported asset files/dirs, but not readme.txt or empty/.
+        assert_eq!(result.len(), 6);
+        assert!(result.iter().any(|entry| entry.name == "assets"));
+        assert!(result.iter().any(|entry| entry.name == "notes"));
+        assert!(result
+            .iter()
+            .any(|entry| entry.name == "image.png" && entry.file_kind == "image"));
+        assert!(result
+            .iter()
+            .any(|entry| entry.name == "manual.pdf" && entry.file_kind == "pdf"));
         for entry in &result {
-            assert!(entry.is_dir || entry.is_markdown);
+            assert!(
+                entry.is_dir || matches!(entry.file_kind.as_str(), "markdown" | "image" | "pdf")
+            );
         }
     }
 
@@ -496,9 +887,10 @@ mod tests {
 
         let result = read_directory_impl(&dir.path().to_string_lossy(), Some(&state)).unwrap();
 
-        assert_eq!(result.len(), 3);
-        assert!(result[0].is_dir);
-        assert_eq!(result[0].name, "notes");
+        assert_eq!(result.len(), 6);
+        assert!(result.iter().any(|entry| entry.name == "notes"));
+        assert!(result.iter().any(|entry| entry.name == "assets"));
+        assert!(result.iter().any(|entry| entry.name == "image.png"));
     }
 
     #[test]
@@ -516,6 +908,53 @@ mod tests {
         let result = read_file_impl("/nonexistent/file.md");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), AppError::NotFound(_)));
+    }
+
+    #[test]
+    fn test_resolve_vault_asset_uses_unique_suffix_fallback() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir_all(dir.path().join("2_PROJECTS").join("old")).unwrap();
+        let note = dir.path().join("note.md");
+        let image = dir
+            .path()
+            .join("2_PROJECTS")
+            .join("old")
+            .join("Pasted image.png");
+        fs::write(&note, "# Note").unwrap();
+        fs::write(&image, "image").unwrap();
+
+        let result = resolve_vault_asset_impl(
+            &dir.path().to_string_lossy(),
+            &note.to_string_lossy(),
+            "old/Pasted image.png",
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(result.file_kind, "image");
+        assert_eq!(result.relative_path, "2_PROJECTS/old/Pasted image.png");
+    }
+
+    #[test]
+    fn test_import_paths_copies_existing_file_with_unique_name() {
+        let source_dir = TempDir::new().unwrap();
+        let target_dir = TempDir::new().unwrap();
+        let source = source_dir.path().join("image.png");
+        fs::write(&source, b"new image").unwrap();
+        fs::write(target_dir.path().join("image.png"), b"old image").unwrap();
+
+        let result = import_paths_impl(
+            &target_dir.path().to_string_lossy(),
+            vec![source.to_string_lossy().to_string()],
+        )
+        .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "image 2.png");
+        assert_eq!(
+            fs::read(target_dir.path().join("image 2.png")).unwrap(),
+            b"new image"
+        );
     }
 
     #[test]

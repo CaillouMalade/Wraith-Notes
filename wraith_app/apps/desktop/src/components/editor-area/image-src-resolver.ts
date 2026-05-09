@@ -1,40 +1,61 @@
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getParentDir } from "@/lib/paths";
+import * as tauri from "@/lib/tauri";
 
-function resolveImgSrc(img: HTMLImageElement, markdownDir: string) {
-  const src = img.getAttribute("src");
-  if (!src) return;
-  if (
+function isExternalImageSrc(src: string) {
+  return (
     src.startsWith("http://") ||
     src.startsWith("https://") ||
     src.startsWith("asset:") ||
     src.startsWith("data:") ||
     src.startsWith("blob:")
-  )
-    return;
-  const absolute = src.startsWith("/") ? src : `${markdownDir}/${src}`;
-  img.src = convertFileSrc(absolute);
+  );
 }
 
-export function imageSrcResolver(getActivePath: () => string | null) {
+async function resolveImgSrc(
+  img: HTMLImageElement,
+  currentFilePath: string,
+  workspaceRoot: string | null,
+) {
+  const src = img.getAttribute("src");
+  if (!src) return;
+  if (isExternalImageSrc(src)) return;
+
+  const markdownDir = getParentDir(currentFilePath);
+  let absolute = src.startsWith("/") ? src : `${markdownDir}/${src}`;
+  if (workspaceRoot) {
+    const resolved = await tauri.resolveVaultAsset(workspaceRoot, currentFilePath, src).catch(() => null);
+    if (resolved?.file_kind === "image") absolute = resolved.path;
+  }
+
+  if (img.getAttribute("src") === src) {
+    img.src = convertFileSrc(absolute);
+  }
+}
+
+export function imageSrcResolver(
+  getActivePath: () => string | null,
+  getWorkspaceRoot: () => string | null,
+) {
   return ViewPlugin.fromClass(
     class {
       observer: MutationObserver;
 
       constructor(view: EditorView) {
-        const dir = this.getDir(getActivePath());
-        if (dir) this.fixAll(view.dom, dir);
+        const path = getActivePath();
+        if (path) this.fixAll(view.dom, path, getWorkspaceRoot());
 
         this.observer = new MutationObserver((mutations) => {
-          const d = this.getDir(getActivePath());
-          if (!d) return;
+          const path = getActivePath();
+          if (!path) return;
+          const workspaceRoot = getWorkspaceRoot();
           for (const m of mutations) {
             for (const node of m.addedNodes) {
-              if (node instanceof HTMLImageElement) resolveImgSrc(node, d);
+              if (node instanceof HTMLImageElement) void resolveImgSrc(node, path, workspaceRoot);
               else if (node instanceof HTMLElement) {
                 for (const img of node.querySelectorAll("img"))
-                  resolveImgSrc(img as HTMLImageElement, d);
+                  void resolveImgSrc(img as HTMLImageElement, path, workspaceRoot);
               }
             }
           }
@@ -42,12 +63,10 @@ export function imageSrcResolver(getActivePath: () => string | null) {
         this.observer.observe(view.dom, { childList: true, subtree: true });
       }
 
-      getDir(path: string | null): string | null {
-        return path ? getParentDir(path) : null;
-      }
-
-      fixAll(root: HTMLElement, dir: string) {
-        for (const img of root.querySelectorAll("img")) resolveImgSrc(img as HTMLImageElement, dir);
+      fixAll(root: HTMLElement, path: string, workspaceRoot: string | null) {
+        for (const img of root.querySelectorAll("img")) {
+          void resolveImgSrc(img as HTMLImageElement, path, workspaceRoot);
+        }
       }
 
       destroy() {

@@ -45,6 +45,9 @@ import { tableDecorations } from "./table-decorations";
 import { htmlBlockDecorations, htmlBlockParserExtension } from "./html-block-decorations";
 import { mermaidDecorations } from "./mermaid-decorations";
 import { imageSrcResolver } from "./image-src-resolver";
+import { obsidianEmbedDecorations } from "./obsidian-embed-decorations";
+import { calloutDecorations } from "./callout-decorations";
+import { mathDecorations } from "./math-decorations";
 import { wikiLinkExtension } from "./wiki-link-extension";
 import {
   markdownFormatting,
@@ -60,11 +63,30 @@ import * as editorApi from "@/hooks/editor-api";
 import { useReloadVersion } from "@/hooks/use-tabs";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
 import { parseDocument, parseFrontmatter } from "@/lib/frontmatter";
+import {
+  cssPointFromNativeDrop,
+  elementsFromNativeDrop,
+  getNativeDropPaths,
+  listenForNativeFileDrops,
+  type NativeFileDropPayload,
+} from "@/lib/native-file-drop";
 import { resolveLinkTarget } from "@/lib/paths";
+import { listenForEditorLineJumps } from "@/lib/editor-navigation";
 import { logTimeline, mark } from "@/lib/startup-metrics";
 import * as tauri from "@/lib/tauri";
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const EMBEDDABLE_ASSET_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "tiff",
+  "pdf",
+]);
 
 const VIEWPORT_OVERSHOOT = 2000;
 const VIEWPORT_PARSE_BUDGET_MS = 50;
@@ -89,6 +111,23 @@ function findOuterScroller(view: EditorView): HTMLElement | null {
     el = el.parentElement;
   }
   return null;
+}
+
+function stripLinkSuffix(path: string): string {
+  const hashIndex = path.indexOf("#");
+  const queryIndex = path.indexOf("?");
+  const splitIndex =
+    hashIndex === -1 ? queryIndex : queryIndex === -1 ? hashIndex : Math.min(hashIndex, queryIndex);
+  return splitIndex === -1 ? path : path.slice(0, splitIndex);
+}
+
+function assetFileKindFromPath(path: string): "image" | "pdf" | null {
+  const cleanPath = stripLinkSuffix(path);
+  const name = cleanPath.split(/[\\/]/).pop() ?? cleanPath;
+  const dot = name.lastIndexOf(".");
+  const extension = dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
+  if (extension === "pdf") return "pdf";
+  return EMBEDDABLE_ASSET_EXTENSIONS.has(extension) ? "image" : null;
 }
 
 // True when the latest transaction was a search/replace navigation
@@ -191,6 +230,74 @@ async function handleImagePaste(
   view.dispatch({ changes: { from: cursor, insert: imageMarkdown } });
 }
 
+async function fileToBytes(file: File): Promise<number[]> {
+  const buffer = await file.arrayBuffer();
+  return Array.from(new Uint8Array(buffer));
+}
+
+function isEmbeddableFile(file: File) {
+  return file.type.startsWith("image/") || file.type === "application/pdf" || isEmbeddableAssetPath(file.name);
+}
+
+async function handleBrowserAssetDrop(
+  files: File[],
+  view: EditorView,
+  isDisposed: () => boolean,
+) {
+  for (const file of files) {
+    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
+      throw new Error(`Image is too large (${Math.round(file.size / 1024 / 1024)}MB)`);
+    }
+  }
+
+  const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) return;
+
+  const attachmentsDir = `${workspaceRoot.replace(/\/$/, "")}/attachments`;
+  const imported: Array<{ name: string }> = [];
+  for (const file of files) {
+    const bytes = await fileToBytes(file);
+    if (isDisposed()) return;
+    imported.push(await tauri.importFile(attachmentsDir, file.name, bytes));
+  }
+
+  if (isDisposed() || imported.length === 0) return;
+
+  const markdown = imported.map((file) => `![[attachments/${file.name}]]`).join("\n");
+  const cursor = view.state.selection.main.head;
+  view.dispatch({ changes: { from: cursor, insert: markdown } });
+}
+
+function getPathExtension(path: string) {
+  const name = path.split(/[\\/]/).pop() ?? path;
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
+}
+
+function isEmbeddableAssetPath(path: string) {
+  return EMBEDDABLE_ASSET_EXTENSIONS.has(getPathExtension(path));
+}
+
+async function handleNativeAssetDrop(
+  paths: string[],
+  view: EditorView,
+  isDisposed: () => boolean,
+) {
+  const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) return;
+
+  const embeddablePaths = paths.filter(isEmbeddableAssetPath);
+  if (embeddablePaths.length === 0) return;
+
+  const attachmentsDir = `${workspaceRoot.replace(/\/$/, "")}/attachments`;
+  const imported = await tauri.importPaths(attachmentsDir, embeddablePaths);
+  if (isDisposed() || imported.length === 0) return;
+
+  const markdown = imported.map((file) => `![[attachments/${file.name}]]`).join("\n");
+  const cursor = view.state.selection.main.head;
+  view.dispatch({ changes: { from: cursor, insert: markdown } });
+}
+
 function handleFrontmatterPaste(event: ClipboardEvent, view: EditorView, filePath: string) {
   const text = event.clipboardData?.getData("text/plain");
   if (!text) return false;
@@ -274,9 +381,8 @@ function getRawUrl(view: EditorView, pos: number) {
 async function followLink(href: string | null, filePath: string) {
   if (!href) return;
 
-  const target = await resolveLinkTarget(href, filePath, getWorkspaceRoot(), (path) =>
-    tauri.fileExists(path),
-  );
+  const workspaceRoot = getWorkspaceRoot();
+  const target = await resolveLinkTarget(href, filePath, workspaceRoot, (path) => tauri.fileExists(path));
   if (!target) return;
 
   if (target.kind === "internal") {
@@ -287,6 +393,21 @@ async function followLink(href: string | null, filePath: string) {
   if (target.kind === "external-url") {
     await openUrl(target.url);
     return;
+  }
+
+  const fileKind = assetFileKindFromPath(target.path);
+  if (fileKind && (await tauri.fileExists(target.path))) {
+    editorApi.openAsset(target.path, fileKind);
+    return;
+  }
+
+  const hrefFileKind = assetFileKindFromPath(href);
+  if (hrefFileKind && workspaceRoot) {
+    const resolved = await tauri.resolveVaultAsset(workspaceRoot, filePath, href).catch(() => null);
+    if (resolved) {
+      editorApi.openAsset(resolved.path, resolved.file_kind);
+      return;
+    }
   }
 
   await openPath(target.path);
@@ -524,7 +645,10 @@ function createEditorExtensions(
     tableDecorations(),
     htmlBlockDecorations(),
     mermaidDecorations(),
-    imageSrcResolver(getFilePath),
+    obsidianEmbedDecorations(getFilePath, getWorkspaceRoot),
+    calloutDecorations(),
+    mathDecorations(),
+    imageSrcResolver(getFilePath, getWorkspaceRoot),
     wikiLinkExtension(getFilePath, isDisposed),
     markdownFormatting,
 
@@ -563,6 +687,23 @@ function createEditorExtensions(
 
         return false;
       },
+      drop(event, view) {
+        const files = event.dataTransfer?.files;
+        if (!files || files.length === 0) return false;
+
+        const embeddableFiles = Array.from(files).filter(isEmbeddableFile);
+        if (embeddableFiles.length === 0) return false;
+
+        event.preventDefault();
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos !== null) {
+          view.dispatch({ selection: EditorSelection.cursor(pos) });
+        }
+        void handleBrowserAssetDrop(embeddableFiles, view, isDisposed).catch((error) => {
+          console.error("[editor] Failed to import dropped asset:", error);
+        });
+        return true;
+      },
       keydown(event, view) {
         return handleFrontmatterStart(event, view, getFilePath());
       },
@@ -579,6 +720,8 @@ export function useProsemarkEditor(
 ) {
   const viewRef = useRef<EditorView | null>(null);
   const scrollCleanupRef = useRef<(() => void) | null>(null);
+  const nativeDropCleanupRef = useRef<(() => void) | null>(null);
+  const lineJumpCleanupRef = useRef<(() => void) | null>(null);
   const disposedRef = useRef(false);
   const filePathRef = useRef(filePath);
   const getScrollContainerRef = useRef(getScrollContainer);
@@ -601,6 +744,10 @@ export function useProsemarkEditor(
       disposedRef.current = true;
       scrollCleanupRef.current?.();
       scrollCleanupRef.current = null;
+      nativeDropCleanupRef.current?.();
+      nativeDropCleanupRef.current = null;
+      lineJumpCleanupRef.current?.();
+      lineJumpCleanupRef.current = null;
       const view = viewRef.current;
       if (view) {
         closeEditorSearch({ view });
@@ -653,6 +800,66 @@ export function useProsemarkEditor(
     }
 
     if (autoFocusRef.current) view.focus();
+
+    lineJumpCleanupRef.current = listenForEditorLineJumps(({ path, lineNumber }) => {
+      if (disposedRef.current || path !== filePathRef.current) return;
+      const line = view.state.doc.line(Math.max(1, Math.min(lineNumber, view.state.doc.lines)));
+      view.dispatch({
+        selection: EditorSelection.cursor(line.from),
+        effects: EditorView.scrollIntoView(EditorSelection.cursor(line.from), { y: "center" }),
+        userEvent: "select.outline",
+      });
+      view.focus();
+      editorApi.updateCursorPos(filePathRef.current, line.from);
+    });
+
+    let dropListenerDisposed = false;
+    void listenForNativeFileDrops((payload: NativeFileDropPayload) => {
+      if (disposedRef.current || dropListenerDisposed) return;
+      const paths = getNativeDropPaths(payload);
+      if (paths.length === 0) return;
+
+      const targets = elementsFromNativeDrop(payload);
+      const target = targets.find((candidate) => view.dom.contains(candidate));
+      if (!target) return;
+
+      const rawPoint = payload.position && "x" in payload.position ? payload.position : null;
+      const cssPoint = cssPointFromNativeDrop(payload);
+      const targetRect = view.dom.getBoundingClientRect();
+      const point =
+        cssPoint &&
+        cssPoint.x >= targetRect.left &&
+        cssPoint.x <= targetRect.right &&
+        cssPoint.y >= targetRect.top &&
+        cssPoint.y <= targetRect.bottom
+          ? cssPoint
+          : rawPoint &&
+              rawPoint.x >= targetRect.left &&
+              rawPoint.x <= targetRect.right &&
+              rawPoint.y >= targetRect.top &&
+              rawPoint.y <= targetRect.bottom
+            ? rawPoint
+            : cssPoint;
+      if (point) {
+        const pos = view.posAtCoords(point);
+        if (pos !== null) {
+          view.dispatch({ selection: EditorSelection.cursor(pos) });
+        }
+      }
+
+      void handleNativeAssetDrop(paths, view, () => disposedRef.current).catch((error) => {
+        console.error("[editor] Failed to import dropped asset:", error);
+      });
+    }).then((unlisten) => {
+      if (disposedRef.current || dropListenerDisposed) {
+        unlisten();
+      } else {
+        nativeDropCleanupRef.current = () => {
+          dropListenerDisposed = true;
+          unlisten();
+        };
+      }
+    });
   }, []);
 
   // Detect path or reload-version changes and swap the document in place.

@@ -1,5 +1,7 @@
 import { useCallback, useTransition, type MouseEvent } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SplitIcon } from "@hugeicons/core-free-icons";
 import {
   useActiveTabId,
   useCanNavigateBack,
@@ -22,6 +24,7 @@ import { getRelativePath } from "@/lib/paths";
 import { pageKind } from "./page-kinds";
 import { buildTabMenuItemsSpec, showNativeContextMenu } from "./editor-context-menu";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
+import { useUIStore } from "@/stores/ui-store";
 
 interface EditorTabButtonProps {
   tab: Tab;
@@ -109,6 +112,8 @@ export function EditorTabs() {
   const navigateForward = useNavigateForward();
   const openNewTab = useOpenNewTab();
   const workspaceRoot = useWorkspaceRoot();
+  const isSplitView = useUIStore((state) => state.isSplitView);
+  const toggleSplitView = useUIStore((state) => state.toggleSplitView);
   const [, startTransition] = useTransition();
   useScrollActiveTabIntoView();
 
@@ -210,11 +215,25 @@ export function EditorTabs() {
         <button
           type="button"
           onClick={openNewTab}
-          className="ml-1 flex h-[var(--chrome-control-height)] w-9 shrink-0 items-center justify-center rounded-lg text-base text-[var(--text-icon-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
+          className="ml-1 flex h-[var(--chrome-control-height)] w-8 shrink-0 items-center justify-center rounded-lg text-base text-[var(--text-icon-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
           title="New tab"
           aria-label="New tab"
         >
           +
+        </button>
+        <button
+          type="button"
+          onClick={toggleSplitView}
+          className={`ml-0.5 flex h-[var(--chrome-control-height)] w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)] ${
+            isSplitView
+              ? "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+              : "text-[var(--text-icon-muted)]"
+          }`}
+          title="Toggle split view"
+          aria-label="Toggle split view"
+          aria-pressed={isSplitView}
+        >
+          <HugeiconsIcon icon={SplitIcon} size={16} color="currentColor" strokeWidth={2} />
         </button>
       </div>
     </div>

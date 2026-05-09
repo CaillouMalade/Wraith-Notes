@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   useDirectoryCache,
@@ -8,7 +8,7 @@ import {
   useRewriteExpandedDir,
   useToggleDirectory,
 } from "@/hooks/use-file-tree";
-import { useOpenFile } from "@/hooks/use-tabs";
+import { useOpenAsset, useOpenAssetInNewTab, useOpenFile } from "@/hooks/use-tabs";
 import {
   getOpenFile,
   getOpenFiles,
@@ -21,6 +21,12 @@ import {
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import * as tauri from "@/lib/tauri";
 import { getFileStem, getParentDir, getRelativePath } from "@/lib/paths";
+import {
+  elementFromNativeDrop,
+  getNativeDropPaths,
+  listenForNativeFileDrops,
+  type NativeFileDropPayload,
+} from "@/lib/native-file-drop";
 import { duplicateFile } from "./duplicate-file";
 import { FileTreeNode } from "./file-tree-node";
 import { showFileContextMenu } from "./file-context-menu";
@@ -38,6 +44,33 @@ function getExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return "";
   return name.slice(dot);
+}
+
+function isPreviewableAsset(entry: DirEntry): entry is DirEntry & { file_kind: "image" | "pdf" } {
+  return entry.file_kind === "image" || entry.file_kind === "pdf";
+}
+
+async function openTreeEntry(
+  entry: DirEntry,
+  openFile: (path: string) => Promise<void>,
+  openAsset: (path: string, fileKind: "image" | "pdf") => void,
+) {
+  if (entry.is_markdown) {
+    await openFile(entry.path);
+    return;
+  }
+  if (isPreviewableAsset(entry)) {
+    openAsset(entry.path, entry.file_kind);
+    return;
+  }
+  await tauri.openPath(entry.path);
+}
+
+async function importDroppedFiles(files: FileList, targetDir: string) {
+  for (const file of Array.from(files)) {
+    const buffer = await file.arrayBuffer();
+    await tauri.importFile(targetDir, file.name, Array.from(new Uint8Array(buffer)));
+  }
 }
 
 async function resolveUniqueName(
@@ -61,6 +94,8 @@ export function FileTree({ rootPath }: FileTreeProps) {
   const expandedDirs = useExpandedDirs();
   const toggleDirectory = useToggleDirectory();
   const openFile = useOpenFile();
+  const openAsset = useOpenAsset();
+  const openAssetInNewTab = useOpenAssetInNewTab();
   const refreshDirectory = useRefreshDirectory();
   const invalidatePath = useInvalidatePath();
   const rewriteExpandedDir = useRewriteExpandedDir();
@@ -91,6 +126,46 @@ export function FileTree({ rootPath }: FileTreeProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedPaths.size]);
+
+  useEffect(() => {
+    let isDisposed = false;
+    let unlisten: (() => void) | null = null;
+
+    void listenForNativeFileDrops((payload: NativeFileDropPayload) => {
+      if (isDisposed) return;
+      const paths = getNativeDropPaths(payload);
+      if (paths.length === 0) return;
+
+      const target = elementFromNativeDrop(payload);
+      const treeRoot = target?.closest<HTMLElement>("[data-file-tree-root]");
+      if (!treeRoot) return;
+
+      const node = target?.closest<HTMLElement>("[data-file-tree-path]");
+      const nodePath = node?.dataset.fileTreePath;
+      const targetDir =
+        nodePath && node?.dataset.fileTreeIsDir !== "true" ? getParentDir(nodePath) : nodePath ?? rootPath;
+
+      void tauri
+        .importPaths(targetDir, paths)
+        .then(() => refreshDirectory(targetDir))
+        .catch((error: unknown) => {
+          window.alert(
+            `Failed to import: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+    }).then((dispose) => {
+      if (isDisposed) {
+        dispose();
+      } else {
+        unlisten = dispose;
+      }
+    });
+
+    return () => {
+      isDisposed = true;
+      unlisten?.();
+    };
+  }, [refreshDirectory, rootPath]);
 
   const handleSelectionClick = useCallback(
     (event: MouseEvent<HTMLElement>, entry: DirEntry) => {
@@ -130,11 +205,15 @@ export function FileTree({ rootPath }: FileTreeProps) {
         if (entry.is_dir) {
           void toggleDirectory(entry.path);
         } else {
-          void openFile(entry.path);
+          void openTreeEntry(entry, openFile, openAsset).catch((error: unknown) => {
+            window.alert(
+              `Failed to open: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
         }
       }
     },
-    [flatItems, openFile, selectedPaths, selectionAnchor, toggleDirectory],
+    [flatItems, openAsset, openFile, selectedPaths, selectionAnchor, toggleDirectory],
   );
 
   const handleRenameSubmit = useCallback(
@@ -205,9 +284,25 @@ export function FileTree({ rootPath }: FileTreeProps) {
 
       void showFileContextMenu({
         onOpen: () => {
-          void openFile(entry.path);
+          void openTreeEntry(entry, openFile, openAsset).catch((error: unknown) => {
+            window.alert(
+              `Failed to open: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
         },
         onOpenInNewTab: () => {
+          if (isPreviewableAsset(entry)) {
+            openAssetInNewTab(entry.path, entry.file_kind);
+            return;
+          }
+          if (!entry.is_markdown) {
+            void tauri.openPath(entry.path).catch((error: unknown) => {
+              window.alert(
+                `Failed to open: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            });
+            return;
+          }
           void openFileInNewTabAction(entry.path).catch((error: unknown) => {
             window.alert(
               `Failed to open in new tab: ${error instanceof Error ? error.message : String(error)}`,
@@ -217,9 +312,13 @@ export function FileTree({ rootPath }: FileTreeProps) {
         onDuplicate: () => {
           void (async () => {
             try {
-              const newPath = await duplicateFile(entry.path);
+              const newPath = await duplicateFile(entry.path, { binary: !entry.is_markdown });
               await refreshDirectory(parent);
-              await openFileInNewTabAction(newPath);
+              if (entry.is_markdown) {
+                await openFileInNewTabAction(newPath);
+              } else if (isPreviewableAsset(entry)) {
+                openAssetInNewTab(newPath, entry.file_kind);
+              }
             } catch (error) {
               window.alert(
                 `Failed to duplicate: ${error instanceof Error ? error.message : String(error)}`,
@@ -262,7 +361,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
         },
       });
     },
-    [openFile, refreshDirectory, workspaceRoot],
+    [openAsset, openAssetInNewTab, openFile, refreshDirectory, workspaceRoot],
   );
 
   const handleFolderContextMenu = useCallback(
@@ -445,28 +544,71 @@ export function FileTree({ rootPath }: FileTreeProps) {
     [handleBulkContextMenu, handleFileContextMenu, handleFolderContextMenu, selectedPaths],
   );
 
-  if (flatItems.length === 0) {
-    return <div className="px-2 text-[13px] text-[var(--text-muted)]">No files</div>;
-  }
+  const handleDropFiles = useCallback(
+    (event: DragEvent<HTMLElement>, entry: DirEntry) => {
+      const files = event.dataTransfer.files;
+      if (!files || files.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const targetDir = entry.is_dir ? entry.path : getParentDir(entry.path);
+      void importDroppedFiles(files, targetDir)
+        .then(() => refreshDirectory(targetDir))
+        .catch((error: unknown) => {
+          window.alert(`Failed to import: ${error instanceof Error ? error.message : String(error)}`);
+        });
+    },
+    [refreshDirectory],
+  );
 
   return (
-    <div className="flex flex-col gap-px py-2" role="tree" aria-label="File tree">
-      {flatItems.map((item) => (
-        <FileTreeNode
-          key={item.entry.path}
-          entry={item.entry}
-          depth={item.depth}
-          isExpanded={item.entry.is_dir && expandedDirs.has(item.entry.path)}
-          isRenaming={renamingPath === item.entry.path}
-          isSelected={selectedPaths.has(item.entry.path)}
-          onToggleDir={toggleDirectory}
-          onOpenFile={openFile}
-          onClick={handleSelectionClick}
-          onContextMenu={handleContextMenu}
-          onRenameSubmit={handleRenameSubmit}
-          onRenameCancel={handleRenameCancel}
-        />
-      ))}
+    <div
+      data-file-tree-root="true"
+      className="flex min-h-16 flex-col gap-px py-2"
+      role="tree"
+      aria-label="File tree"
+      onDragOver={(event) => {
+        if (event.dataTransfer.files.length > 0) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        const files = event.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        event.preventDefault();
+        void importDroppedFiles(files, rootPath)
+          .then(() => refreshDirectory(rootPath))
+          .catch((error: unknown) => {
+            window.alert(
+              `Failed to import: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+      }}
+    >
+      {flatItems.length === 0 ? (
+        <div className="rounded-lg px-2 py-3 text-[13px] text-[var(--text-muted)]">
+          No files
+        </div>
+      ) : (
+        flatItems.map((item) => (
+          <FileTreeNode
+            key={item.entry.path}
+            entry={item.entry}
+            depth={item.depth}
+            isExpanded={item.entry.is_dir && expandedDirs.has(item.entry.path)}
+            isRenaming={renamingPath === item.entry.path}
+            isSelected={selectedPaths.has(item.entry.path)}
+            onToggleDir={toggleDirectory}
+            onOpenFile={(path) => {
+              const entry = flatItems.find((candidate) => candidate.entry.path === path)?.entry;
+              return entry ? openTreeEntry(entry, openFile, openAsset) : openFile(path);
+            }}
+            onClick={handleSelectionClick}
+            onContextMenu={handleContextMenu}
+            onDropFiles={handleDropFiles}
+            onRenameSubmit={handleRenameSubmit}
+            onRenameCancel={handleRenameCancel}
+          />
+        ))
+      )}
     </div>
   );
 }

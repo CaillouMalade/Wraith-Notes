@@ -60,12 +60,21 @@ catalogs:
     '@welldone-software/why-did-you-render':
       specifier: ^10.0.1
       version: 10.0.1
+    '@xterm/addon-fit':
+      specifier: ^0.11.0
+      version: 0.11.0
+    '@xterm/xterm':
+      specifier: ^6.0.0
+      version: 6.0.0
     cmdk:
       specifier: ^1.1.1
       version: 1.1.1
     dompurify:
       specifier: ^3.3.3
       version: 3.3.3
+    katex:
+      specifier: ^0.16.45
+      version: 0.16.45
     mermaid:
       specifier: ^11.14.0
       version: 11.14.0
@@ -159,12 +168,21 @@ importers:
       '@welldone-software/why-did-you-render':
         specifier: 'catalog:'
         version: 10.0.1(react@19.2.4)
+      '@xterm/addon-fit':
+        specifier: 'catalog:'
+        version: 0.11.0
+      '@xterm/xterm':
+        specifier: 'catalog:'
+        version: 6.0.0
       cmdk:
         specifier: 'catalog:'
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       dompurify:
         specifier: 'catalog:'
         version: 3.3.3
+      katex:
+        specifier: 'catalog:'
+        version: 0.16.45
       mermaid:
         specifier: 'catalog:'
         version: 11.14.0
@@ -2206,6 +2224,12 @@ packages:
     resolution: {integrity: sha512-tMgGkt30iVYeLMUKExNmtm019QgyjLtA7lwB0QAizYNEuihlCG2eoAWBBaz/bDeI7LeqAJ9msC6hY3vX+JB97g==}
     peerDependencies:
       react: ^19
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   '@zip.js/zip.js@2.8.26':
     resolution: {integrity: sha512-RQ4h9F6DOiHxpdocUDrOl6xBM+yOtz+LkUol47AVWcfebGBDpZ7w7Xvz9PS24JgXvLGiXXzSAfdCdVy1tPlaFA==}
@@ -6181,6 +6205,10 @@ snapshots:
     dependencies:
       lodash: 4.17.23
       react: 19.2.4
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@zip.js/zip.js@2.8.26': {}
 

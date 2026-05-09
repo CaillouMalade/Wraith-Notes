@@ -51,14 +51,22 @@ fn attach_window_handlers(app: &tauri::AppHandle, window: &WebviewWindow) {
     let handle = app.clone();
     window.on_window_event(move |event| match event {
         WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => {
-            for path in paths {
-                if let Some(payload) = resolve_path(path) {
-                    queue_open_event(&handle, &label, payload);
-                    break;
+            let has_workspace = handle
+                .state::<AppState>()
+                .get(&label)
+                .and_then(|state| state.workspace_root.read().clone())
+                .is_some();
+            if !has_workspace {
+                for path in paths {
+                    if let Some(payload) = resolve_path(path) {
+                        queue_open_event(&handle, &label, payload);
+                        break;
+                    }
                 }
             }
         }
         WindowEvent::Destroyed => {
+            commands::tools::close_window_sessions(&label);
             // Remove the state; the `WorkspaceState`'s `RecommendedWatcher`
             // drops on the last `Arc` release, unregistering FSEvents/inotify.
             handle.state::<AppState>().remove(&label);
@@ -401,8 +409,13 @@ pub fn run() {
             commands::fs::create_file,
             commands::fs::create_directory,
             commands::fs::rename_entry,
+            commands::fs::copy_file,
+            commands::fs::import_file,
+            commands::fs::import_paths,
+            commands::fs::resolve_vault_asset,
             commands::fs::delete_entry,
             commands::fs::file_exists,
+            commands::fs::open_path,
             commands::fs::reveal_in_file_manager,
             commands::workspace::open_workspace,
             commands::workspace::open_workspace_in_new_window,
@@ -419,6 +432,22 @@ pub fn run() {
             commands::settings::get_setting,
             commands::settings::set_setting,
             commands::settings::reset_setting,
+            commands::tools::git_status,
+            commands::tools::git_init,
+            commands::tools::git_remotes,
+            commands::tools::git_add_remote,
+            commands::tools::git_diff,
+            commands::tools::git_pull,
+            commands::tools::git_push,
+            commands::tools::git_commit_all,
+            commands::tools::run_agent_prompt,
+            commands::tools::agent_start,
+            commands::tools::agent_stop,
+            commands::tools::terminal_start,
+            commands::tools::terminal_write,
+            commands::tools::terminal_resize,
+            commands::tools::terminal_stop,
+            commands::tools::open_workspace_terminal,
             commands::startup::get_startup_state,
             #[cfg(target_os = "macos")]
             commands::shell_install::cli_status,

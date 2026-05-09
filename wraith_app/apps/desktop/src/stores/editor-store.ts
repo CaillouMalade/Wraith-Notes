@@ -13,6 +13,7 @@ import {
   locationBehavior,
   serializeLocation,
   deserializeLocation,
+  type AssetFileKind,
   type FileLocation,
   type Location,
   type SerializedLocation,
@@ -58,6 +59,8 @@ interface EditorState {
 
   openFile: (path: string) => Promise<void>;
   openFileInNewTab: (path: string) => Promise<void>;
+  openAsset: (path: string, fileKind: AssetFileKind) => void;
+  openAssetInNewTab: (path: string, fileKind: AssetFileKind) => void;
   openNewTab: () => void;
   ensureLauncherTab: () => void;
   openOrFocus: (match: (tab: Tab) => boolean, factory: () => Tab) => void;
@@ -119,6 +122,10 @@ export function createFileTab(path: string, id = createTabId()): Tab {
   return { id, location: { kind: "file", path }, back: [], forward: [] };
 }
 
+export function createAssetTab(path: string, fileKind: AssetFileKind, id = createTabId()): Tab {
+  return { id, location: { kind: "asset", path, fileKind }, back: [], forward: [] };
+}
+
 export function createSettingsTab(id = createTabId()): Tab {
   return { id, location: { kind: "settings" }, back: [], forward: [] };
 }
@@ -168,13 +175,17 @@ function locationPaths(location: Location): string[] {
   return locationBehavior(location).paths(location);
 }
 
-function locationPrimaryPath(location: Location): string | null {
-  return locationBehavior(location).primaryPath(location);
+function locationDocumentPaths(location: Location): string[] {
+  return location.kind === "file" ? [location.path] : [];
+}
+
+function locationDocumentPrimaryPath(location: Location): string | null {
+  return location.kind === "file" ? location.path : null;
 }
 
 function deriveActiveFilePath(tabs: Tab[], activeTabId: string | null): string | null {
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
-  return activeTab ? locationPrimaryPath(activeTab.location) : null;
+  return activeTab ? locationDocumentPrimaryPath(activeTab.location) : null;
 }
 
 function getTabIndex(tabs: Tab[], tabId: string) {
@@ -382,6 +393,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       get().closeTab(nextTab.id);
       throw new Error(`Failed to open ${path}`);
     }
+  },
+
+  openAsset: (path: string, fileKind: AssetFileKind) => {
+    const state = get();
+    const existing = state.tabs.find(
+      (tab) => tab.location.kind === "asset" && tab.location.path === path,
+    );
+    if (existing) {
+      state.setActiveTab(existing.id);
+      return;
+    }
+
+    const activeTab = getActiveTab(state);
+    const nextTab = createAssetTab(path, fileKind);
+
+    set((currentState) => {
+      if (activeTab?.location.kind === "launcher") {
+        const index = getTabIndex(currentState.tabs, activeTab.id);
+        if (index !== -1) {
+          const tabs = [...currentState.tabs];
+          tabs[index] = { ...nextTab, id: activeTab.id };
+          return {
+            tabs,
+            activeTabId: activeTab.id,
+            activeFilePath: null,
+          };
+        }
+      }
+      return {
+        tabs: [...currentState.tabs, nextTab],
+        activeTabId: nextTab.id,
+        activeFilePath: null,
+      };
+    });
+  },
+
+  openAssetInNewTab: (path: string, fileKind: AssetFileKind) => {
+    const nextTab = createAssetTab(path, fileKind);
+    set((state) => ({
+      tabs: [...state.tabs, nextTab],
+      activeTabId: nextTab.id,
+      activeFilePath: null,
+    }));
   },
 
   openNewTab: () => {
@@ -613,7 +667,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           tabs,
           activeFilePath:
             currentState.activeTabId === activeTab.id
-              ? locationPrimaryPath(previousTab.location)
+              ? locationDocumentPrimaryPath(previousTab.location)
               : currentState.activeFilePath,
           ...(files ? { openFiles: files } : {}),
         };
@@ -634,7 +688,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       back: activeTab.back.slice(0, -1),
       forward: [activeTab.location, ...activeTab.forward],
     };
-    const targetPath = locationPrimaryPath(targetLocation);
+    const targetPath = locationDocumentPrimaryPath(targetLocation);
     const version = startNavigation(activeTab.id);
 
     set((currentState) => {
@@ -666,7 +720,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           tabs,
           activeFilePath:
             currentState.activeTabId === activeTab.id
-              ? locationPrimaryPath(previousTab.location)
+              ? locationDocumentPrimaryPath(previousTab.location)
               : currentState.activeFilePath,
           ...(files ? { openFiles: files } : {}),
         };
@@ -687,7 +741,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       back: [...activeTab.back, activeTab.location],
       forward: remainingForward,
     };
-    const targetPath = locationPrimaryPath(targetLocation!);
+    const targetPath = locationDocumentPrimaryPath(targetLocation!);
     const version = startNavigation(activeTab.id);
 
     set((currentState) => {
@@ -719,7 +773,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           tabs,
           activeFilePath:
             currentState.activeTabId === activeTab.id
-              ? locationPrimaryPath(previousTab.location)
+              ? locationDocumentPrimaryPath(previousTab.location)
               : currentState.activeFilePath,
           ...(files ? { openFiles: files } : {}),
         };
@@ -732,21 +786,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set((state) => {
       const file = state.openFiles.get(oldPath);
-      if (!file) return state;
-
-      shouldScheduleSave = file.isDirty;
-
-      const files = new Map(state.openFiles);
-      files.delete(oldPath);
-      files.set(newPath, { ...file, path: newPath });
-
       const rewrite = (loc: Location) => rewriteLocation(loc, oldPath, newPath);
       const tabs = state.tabs.map((tab) => applyRewriteToTab(tab, rewrite) ?? tab);
+      let files: Map<string, OpenFile> | undefined;
+
+      if (file) {
+        shouldScheduleSave = file.isDirty;
+        files = new Map(state.openFiles);
+        files.delete(oldPath);
+        files.set(newPath, { ...file, path: newPath });
+      }
 
       return {
-        openFiles: files,
         tabs,
         activeFilePath: state.activeFilePath === oldPath ? newPath : state.activeFilePath,
+        ...(files ? { openFiles: files } : {}),
       };
     });
 
@@ -928,15 +982,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const uniquePaths = [
       ...new Set(
         restoredTabs.flatMap((tab) => [
-          ...locationPaths(tab.location),
-          ...tab.back.flatMap((l) => locationPaths(l)),
-          ...tab.forward.flatMap((l) => locationPaths(l)),
+          ...locationDocumentPaths(tab.location),
+          ...tab.back.flatMap((l) => locationDocumentPaths(l)),
+          ...tab.forward.flatMap((l) => locationDocumentPaths(l)),
         ]),
       ),
     ];
     const activeTabIndex = activeIndex ?? 0;
     const activeTab = restoredTabs[activeTabIndex] ?? restoredTabs[0] ?? null;
-    const activePath = activeTab ? locationPrimaryPath(activeTab.location) : null;
+    const activePath = activeTab ? locationDocumentPrimaryPath(activeTab.location) : null;
 
     // If the bundled `restore_workspace` IPC pre-fetched the active file, seed
     // it directly so the editor can mount with content already in place — no
