@@ -99,7 +99,7 @@ The two commands you'll use 99% of the time are `app:dev` and `app:build`.
 6. Open the DMG, drag `Wraith.app` over the existing one in `/Applications/` (replace).
 7. Right-click → Open the first time after replacing (Gatekeeper resets when binaries change).
 
-The installed app uses `~/Library/Application Support/com.wraith/`. That state survives the replacement — V2 reads the prefs V1 wrote unless you've changed schema.
+The installed app uses `~/Library/Application Support/com.wraith/`. That state survives replacement between releases unless a future migration changes the schema.
 
 ### Daily dev loop
 
@@ -107,7 +107,7 @@ The installed app uses `~/Library/Application Support/com.wraith/`. That state s
 2. Wait for the "Wraith Dev" window to open. Your edits hot-reload (frontend) or recompile-on-save (Rust).
 3. `Ctrl+C` in the terminal to stop.
 
-The dev build uses `~/Library/Application Support/com.wraith.dev/`. Wreck this freely — it doesn't touch your daily V1's data.
+The dev build uses `~/Library/Application Support/com.wraith.dev/`. Wreck this freely — it doesn't touch your daily release data.
 
 ### Running both at the same time
 
@@ -147,7 +147,7 @@ Without the split:
 - A schema-breaking dev experiment corrupts the prefs your daily app reads.
 - The single-instance plugin (carried over from Writer) blocks running
   both at once — opening the dev build would just focus the installed
-  V1 instead of starting a separate process.
+  daily release instead of starting a separate process.
 
 With the split:
 - Different identifiers → different state directories → independent.

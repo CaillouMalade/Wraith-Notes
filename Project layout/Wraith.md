@@ -5,57 +5,67 @@ status: active
 
 # Wraith
 
-Wraith is the working name for the future custom note-taking app / vault console.
+Wraith is Arthur's local-first desktop Markdown vault app.
 
 ## Goal
 
-Build a desktop app over the existing Markdown vault, without replacing the vault as the source of truth.
+Build a desktop app over the existing Markdown vault, without replacing the
+vault as the source of truth.
 
 Core principle: **files first, app second**.
 
-## Current direction
+## Current State
 
-- Desktop shell: Tauri.
+- V1 (`v1.0.0`) is the historical Writer Computer rebrand baseline.
+- V2 (`v2.0.0`) shipped on 2026-05-09 and is the current daily release.
+- Active source lives in `wraith_app/` and should remain aligned with the
+  current shipped tag plus intentional post-release fixes.
+- Writer and Tolaria source trees are read-only implementation references:
+  inspect and selectively adapt what already works there instead of rebuilding
+  solved behavior from scratch.
+
+## Current Capabilities
+
+- Desktop shell: Tauri v2.
 - Native layer: Rust.
 - UI: React + TypeScript.
-- Editor: CodeMirror 6 first.
-- Preview: Markdown renderer with Obsidian/Tolaria syntax support.
-- Folder-first navigation, especially when using Obsidian-style workflows.
+- Editor: CodeMirror/Prosemark with direct Markdown editability.
+- Folder-first navigation over local vault files.
 - Proper frontmatter preservation/editing on every note.
-- Wikilinks in the body should work normally.
-- Frontmatter wikilinks should display/round-trip correctly, even if they are not used for sidebar semantics.
-- Obsidian callouts and embedded media should render or degrade cleanly.
-- Old Obsidian path-style links should resolve where possible.
-- Git: useful later for history/sync, not the first feature.
-- Agent sidebar: future layer, not v0.
+- Body wikilinks, old path-style resolver fallback, and frontmatter wikilink
+  display/navigation.
+- Supported image/PDF assets visible in the sidebar, search, command palette,
+  and first-class read-only asset tabs.
+- Markdown image links and Obsidian-style image/PDF embeds resolve through the
+  shared vault resolver.
+- Obsidian callout rendering, KaTeX math decorations, Mermaid, tables, code
+  blocks, and existing Markdown editing polish.
+- Configurable app-level keyboard shortcuts.
+- Split center panes and a right sidebar with Agent, Terminal, Git, Properties,
+  and Outline surfaces.
+- Integrated terminal/agent/Git workflows are present, but still early enough
+  to treat as V3 polish territory when rough edges appear.
 
-## V0 scope
+## Post-V2 Focus
 
-V0 is deliberately smaller than the compatibility roadmap: **get Writer Computer's source code, rename/rebrand it to Wraith, and have the app open on the MacBook.**
+- Make note-body Finder image/PDF drag/drop reliable enough to promise.
+- Polish split-tab UX and tab/split interactions.
+- Clean stale docs and source references left over from the V1/V2 transition.
+- Keep borrowing from Writer/Tolaria where they already contain an
+  implementation pattern Wraith can adapt.
+- Preserve the V1/V2 visual language; do not redesign the app away from its
+  quiet folder-first feel.
 
-That means:
+## Non-Goals For Now
 
-- Wraith repo exists.
-- Writer Computer codebase is present with attribution/license preserved.
-- App name, visible title, bundle/product naming, and basic branding say Wraith.
-- Dependencies install cleanly on the MacBook.
-- App launches locally.
-- App can open a vault/workspace at least as well as Writer Computer already can.
-- No large renderer/indexing changes are required for V0 unless they block launch.
-
-## Not V0
-
-- Block editor.
-- Graph visualization.
-- Full Git conflict UI.
-- AI chat/sidebar.
-- Plugin system.
-- Mobile sync.
 - Custom database as source of truth.
-- Backlinks.
-- Saved views / filters.
-- Semantic index over frontmatter relationships.
-- Semantic sidebar.
+- Mobile sync.
+- Plugin marketplace/system.
+- Notion/Tolaria-style database collections.
+- Broad semantic sidebar or saved-view system unless Arthur explicitly expands
+  scope.
+- Graph/backlink surfaces unless they become useful support plumbing for a
+  concrete workflow.
 
 ## Stack map
 
@@ -71,9 +81,9 @@ React/TypeScript frontend
 Views + CodeMirror editor + Markdown preview
 ```
 
-## Reference app
+## Reference Apps
 
-Writer Computer (`joelbqz/writer-computer`) is the current closest base/reference.
+Writer Computer (`joelbqz/writer-computer`) is the upstream base/reference.
 
 Useful existing pieces:
 
@@ -86,26 +96,16 @@ Useful existing pieces:
 - File extension filtering in the UI.
 - macOS release/signing flow.
 
-Observed gaps against the active vault:
-
-- Obsidian callouts such as `> [!important]` render as plain quotes, not colored callout boxes.
-- Embedded Obsidian images such as `![[...png]]` do not render.
-- Wikilinks work in the body but not as links inside frontmatter/property fields.
-- Old path-style links/embeds, e.g. `![[2_PROJECTS/.../Pasted image.png]]`, do not resolve.
-- Image/PDF files can be allowed by extension filters but do not appear as first-class browsable/openable files yet.
-- Saving preserves frontmatter correctly.
-
-Main gap for Wraith V0: keep Writer’s simple folder-first model and add the missing Obsidian/Tolaria compatibility layer around callouts, embeds, frontmatter wikilinks, and old-path resolution. Semantic indexing, backlinks, and saved views are optional later work, not required for the first usable version.
+Tolaria is the main future-direction reference, especially for vault asset
+handling, Markdown/media rendering, properties/frontmatter behavior,
+right-sidebar workflows, Git/sync/publishing behavior, and implementation
+patterns that can be adapted without importing Tolaria's full semantic model.
 
 License note: Writer Computer is GPL-3.0, so a fork/distributed derivative stays GPL-compatible/open.
 
-## Status
+## Key Logs
 
-Name chosen. Writer Computer looks like the strongest base to probe before starting fresh.
-
-## Next actions
-
-- Inspect Tolaria’s editor/rendering pieces for callouts, embeds, frontmatter wikilinks, file-type handling, and old-path link resolution.
-- Decide fork-and-prune vs direct patch on Writer Computer.
-- Prototype the compatibility layer on top of Writer’s existing Markdown renderer/editor.
-- Keep folder tree and frontmatter preservation unchanged unless necessary.
+- [[V0 Setup Log]]: Writer to Wraith rebrand baseline, retroactively V1.
+- [[V2 Release Log]]: shipped V2 contents, release identity, and explicit V3
+  deferrals.
+- [[Feature Workflow & Versions]]: current version tracker and release process.

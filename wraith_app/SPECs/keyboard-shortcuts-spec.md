@@ -1,5 +1,9 @@
 # Keyboard Shortcuts Spec
 
+## Status
+
+Shipped in V2 (`v2.0.0`).
+
 ## Goal
 
 Make the core Wraith keyboard workflow visible and configurable without changing

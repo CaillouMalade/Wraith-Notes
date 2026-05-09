@@ -15,21 +15,24 @@ what each version contains. Companion to [[Wraith]] (vision),
 | Version | State | Contents | Tag |
 |---|---|---|---|
 | V1 (`1.0.0`) | **Shipped** — installed at `/Applications/Wraith.app` | Writer Computer source, rebranded as Wraith, updater removed, dev/release config split. Plus two bug fixes: vite alias resolution for paths with spaces, and disabling Vite+'s pre-commit hook that blocks all commits without a `vp staged` config. Functionally equivalent to Writer at the moment Writer was forked. | `v1.0.0` |
-| V2 (`2.0.0`) | Planned — Obsidian/Tolaria compatibility layer | Obsidian callouts (`> [!important]`), `![[image.png]]` embeds, frontmatter wikilinks, old path-style link/embed resolution, image/PDF first-class browsing. See [[Wraith]] § "Observed gaps". | — |
-| V3+ | TBD | Backlinks, saved views, semantic sidebar, agent sidebar, etc. (see [[Wraith]] § "Not V0"). | — |
+| V2 (`2.0.0`) | **Shipped** — current daily release | Daily-app compatibility/shell pass: shared vault resolver, image/PDF asset visibility and preview tabs, Obsidian image/PDF embeds, callouts, frontmatter wikilink chips, KaTeX math, configurable shortcuts, right sidebar Agent/Terminal/Git/Properties/Outline surfaces, split center view, Git automation, and V2 ship fixes. See [[V2 Release Log]]. | `v2.0.0` |
+| V3+ | Planned cleanup/stabilization | V2 deferrals and polish: reliable note-body image/PDF drag/drop, split-tab UX polish, source/docs cleanup, and whichever next roadmap slice Arthur chooses. | — |
 
-When V2 ships, replace its row with the actual contents and add a V3 row.
+V2 was built in a one-shot release worktree and tagged there first. On
+2026-05-09, active `wraith_app/main` was fast-forwarded to `v2.0.0` and the
+release worktree was removed, so `wraith_app/` is the single working tree
+and `v2.0.0` is the V2 baseline.
 
 ## What's currently in the repo vs installed
 
 The two are independent on purpose:
 
-- **Installed app at `/Applications/Wraith.app`** = the V1 binary, frozen
-  at git tag `v1.0.0`. Use this for daily notes. Doesn't update unless
-  you replace it via a new `pnpm app:build`.
-- **Source tree at `wraith_app/`** = the in-progress codebase, currently
-  identical to V1 but will diverge as V2 features land. Run via
-  `pnpm app:dev` for the dev build, which has its own isolated state at
+- **Installed app at `/Applications/Wraith.app`** = the current daily release
+  binary. As of V2, the source tag is `v2.0.0`; replacing the app requires a
+  fresh `pnpm app:build` and install from the generated bundle.
+- **Source tree at `wraith_app/`** = the active Wraith codebase. It should
+  match the current shipped tag plus any intentional post-release fixes. Run
+  via `pnpm app:dev` for the dev build, which has isolated state at
   `~/Library/Application Support/com.wraith.dev/`.
 
 ## Per-version setup logs
@@ -37,9 +40,9 @@ The two are independent on purpose:
 Each shipped version gets a setup log under `Project layout/` that records
 everything that changed in the source for that release. The current one:
 
-- [[V0 Setup Log]] — rebrand work. This becomes V1's setup log when V1
-  ships, since V1 is just the rebrand baseline. Future versions get their
-  own: `V2 Release Log.md`, `V3 Release Log.md`, etc.
+- [[V0 Setup Log]] — rebrand work; retroactively V1's setup/release log.
+- [[V2 Release Log]] — the shipped V2 daily-app pass and explicit V3
+  deferrals.
 
 ## Per-feature workflow
 
@@ -73,7 +76,7 @@ The "Wraith Dev" window opens. Frontend changes hot-reload; Rust changes
 trigger a recompile-on-save (a few seconds). Click around and verify
 behavior. This is the dev build — its state lives at
 `~/Library/Application Support/com.wraith.dev/`, totally isolated from
-your daily V1 install.
+your daily release install.
 
 For automated checks (run before committing):
 
@@ -176,3 +179,16 @@ Recorded for posterity:
 
 The next time you need to ship a release, follow the [Steps to ship](#steps-to-ship)
 above instead of this section. This subsection just records the V1 close-out.
+
+## V2 close-out (done 2026-05-09)
+
+Recorded for posterity:
+
+1. V2 implementation committed and tagged: `c557794 Release Wraith v2.0.0`.
+2. The release tag is `v2.0.0`.
+3. Active `wraith_app/main` was fast-forwarded to the V2 tag after the
+   one-shot release worktree shipped it; that worktree has since been
+   removed so `wraith_app/` is the single working tree.
+4. `apps/desktop/package.json` and `apps/desktop/src-tauri/tauri.conf.json`
+   both record `2.0.0`.
+5. See [[V2 Release Log]] for shipped contents and known V3 deferrals.

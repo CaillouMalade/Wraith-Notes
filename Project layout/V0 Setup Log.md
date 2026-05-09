@@ -6,6 +6,11 @@ Belongs to: "[[Wraith]]"
 
 # V0 Setup Log
 
+> Status, 2026-05-09: historical V0/V1 setup record. Several deferred items
+> below were resolved later, including the app icon, Wraith agent guidance, and
+> the V2 release log. See [[V2 Release Log]] and [[Feature Workflow & Versions]]
+> for current release state.
+
 Records what was done in the initial Writer → Wraith rebrand pass and what was
 deliberately deferred. Companion to [[Wraith]], [[Development Setup]],
 [[Dev vs Release Builds]], and [[Feature Workflow & Versions]].

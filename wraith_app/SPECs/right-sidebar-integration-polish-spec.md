@@ -1,5 +1,11 @@
 # Right Sidebar Integration Polish Spec
 
+## Status
+
+Shipped in V2 (`v2.0.0`) with explicit follow-ups. DMG bundling was restored
+before release. Note-body Finder image/PDF drag/drop remains a V3 deferral;
+file-tree import and asset browsing/opening shipped.
+
 ## Goal
 
 Make the V2 right-sidebar integrations behave like first-class Wraith surfaces instead of placeholders, while preserving the app-only build path and the existing Wraith visual language.
@@ -25,6 +31,5 @@ Make the V2 right-sidebar integrations behave like first-class Wraith surfaces i
 
 ## Non-Goals
 
-- No DMG bundling in this pass.
 - No hosted localhost/browser app surface.
 - No full merge-conflict resolver modal yet; conflicts must be detected and surfaced clearly, with direct file/diff access.

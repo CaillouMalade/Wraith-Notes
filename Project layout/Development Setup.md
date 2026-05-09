@@ -6,6 +6,11 @@ Belongs to: "[[Wraith]]"
 
 # Wraith Development Setup
 
+> Status, 2026-05-09: historical setup/planning note. Wraith currently lives
+> in this workspace under `wraith_app/`; V2 is shipped/tagged `v2.0.0`. Keep
+> this file for the original repo/machine setup rationale, not as current
+> release state.
+
 ## Decision
 
 Wraith should live in a **new GitHub repository**, not inside the vault.

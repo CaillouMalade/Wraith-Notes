@@ -5,8 +5,8 @@ This workspace is the Wraith project plus reference source trees. Load this file
 ## Source Boundaries
 
 - `wraith_app/` — active Wraith app source. This is the only codebase to change during normal Wraith work.
-- `writer_source_code/` — upstream Writer Computer reference snapshot. Read-only unless Arthur explicitly asks to modify it.
-- `tolaria_source_code_ref_only/` — Tolaria reference/documentation source. Important feature reference for future Wraith work. Read-only unless Arthur explicitly asks to modify it.
+- `writer_source_code/` — upstream Writer Computer reference snapshot. Read-only unless Arthur explicitly asks to modify it. Use it as an implementation reference when a Wraith feature already exists upstream.
+- `tolaria_source_code_ref_only/` — Tolaria reference/documentation source. Read-only unless Arthur explicitly asks to modify it. Inspect and selectively adapt Tolaria behavior/implementation ideas instead of redeveloping solved pieces from scratch.
 - `Project layout/` — project planning notes and durable roadmap/release context. Edit this when framing direction, recording decisions, or updating release/project docs.
 - `.claude/` — workspace-local Claude settings. Do not treat permissions here as Wraith product guidance.
 
@@ -14,9 +14,11 @@ This workspace is the Wraith project plus reference source trees. Load this file
 
 - Wraith is a local-first Tauri v2 / React / TypeScript / Rust Markdown vault app forked from Writer Computer.
 - Core principle: files first, app second. The Markdown filesystem is the source of truth.
-- V1 is tagged `v1.0.0` and installed at `/Applications/Wraith.app`.
-- The next product focus is V2: Obsidian/Tolaria compatibility for the existing folder-first Wraith app.
-- V2 must keep one predictable editor surface; do not introduce hidden editor/viewer swaps or confusing global raw/preview modes.
+- V1 is tagged `v1.0.0` as the historical rebrand baseline.
+- V2 is shipped/tagged `v2.0.0` and is the current daily Wraith release.
+- Active `wraith_app/` source should stay aligned with the current shipped release plus any post-release fixes.
+- Post-V2 focus is cleanup and V3 stabilization: fix deferred V2 rough edges, keep docs current, and polish the shipped compatibility/shell surfaces without drifting away from Wraith's files-first model.
+- Wraith must keep one predictable editor surface; do not introduce hidden editor/viewer swaps or confusing global raw/preview modes.
 
 ## Working Rules
 
@@ -44,13 +46,13 @@ Do not confuse `pnpm dev` with native app development. It is frontend/Vite only 
 
 ## Roadmap Context
 
-V2 compatibility should be framed holistically before implementation. Expected themes:
+V2 shipped a broader daily-app pass: shared vault resolver, asset visibility/opening, Obsidian image/PDF embeds, callouts, frontmatter wikilinks, math rendering, configurable shortcuts, split center panes, and right-sidebar Agent/Terminal/Git/Properties/Outline surfaces.
 
-1. Shared vault path / link / asset resolver.
-2. Obsidian image embeds such as `![[image.png]]`.
-3. First-class image/PDF browsing or opening.
-4. Obsidian callouts such as `> [!important]`.
-5. Frontmatter wikilinks that display and navigate cleanly while preserving raw files.
-6. Compatibility QA against Arthur's real vault patterns.
+Known V3/post-V2 follow-ups:
 
-Use `wraith_app/SPECs/v2-obsidian-tolaria-compatibility-roadmap.md` as the current roadmap working surface. Keep semantic indexing, backlinks, saved views, agent sidebar, and database-like abstractions out of V2 unless Arthur explicitly expands scope.
+1. Make note-body Finder image/PDF drag/drop reliable enough to promise.
+2. Polish split-tab UX and tab/split interactions.
+3. Continue documentation/source cleanup after the V2 release.
+4. Keep selectively borrowing from Writer/Tolaria when they already solve the behavior Wraith needs.
+
+Use `wraith_app/SPECs/v2-obsidian-tolaria-compatibility-roadmap.md` as the historical V2 spec plus current deferral record. For new non-trivial work, create or update a focused spec under `wraith_app/SPECs/`.

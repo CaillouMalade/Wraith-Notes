@@ -6,6 +6,10 @@ Belongs to: "[[Wraith]]"
 
 # Wraith MacBook Development Checklist
 
+> Status, 2026-05-09: historical MacBook setup checklist from the V1 import
+> phase. V2 is now shipped/tagged `v2.0.0`; use [[Dev vs Release Builds]] and
+> `wraith_app/AGENTS.md` for current app commands.
+
 This is the MacBook setup list for taking Writer Computer’s source code, renaming it to Wraith, and getting the app open locally.
 
 ## Goal

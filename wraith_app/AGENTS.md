@@ -10,15 +10,16 @@ Wraith is the active app. It is a local-first Tauri v2 desktop Markdown vault ap
 
 - Active source: this directory, `wraith_app/`.
 - Reference only: `../writer_source_code/` and `../tolaria_source_code_ref_only/`.
-- Tolaria is an important feature reference for Wraith V2. Inspect it when useful, but do not edit it unless Arthur explicitly asks.
-- Writer Computer is the upstream baseline/reference. Do not edit it unless Arthur explicitly asks.
+- Tolaria is an important feature and implementation reference. Inspect it when useful, adapt ideas when it already solves a behavior Wraith needs, but do not edit it unless Arthur explicitly asks.
+- Writer Computer is the upstream baseline/reference. Inspect it for inherited implementations and patterns, but do not edit it unless Arthur explicitly asks.
 - Planning notes live in `../Project layout/`.
 
 ## Current State
 
-- V1 is shipped, tagged `v1.0.0`, and installed at `/Applications/Wraith.app`.
-- Current source may be ahead of V1 as V2 work begins.
-- Main next focus: V2 Obsidian/Tolaria compatibility while keeping Writer's simple folder-first model.
+- V1 is shipped/tagged `v1.0.0` as the historical rebrand baseline.
+- V2 is shipped/tagged `v2.0.0` and is the current daily Wraith release.
+- Current source is expected to match `v2.0.0` plus any post-release fixes.
+- Main next focus: post-V2 cleanup and V3 stabilization, especially the V2 deferrals around note-body image/PDF drag/drop reliability and split-tab UX polish.
 
 ## Core Principle
 
@@ -74,18 +75,16 @@ Notes:
 - Do not restore Writer's updater configuration unless Wraith has its own release pipeline.
 - Do not follow Tolaria/Laputa Todoist, CodeScene, Codacy, branch, or push workflow for Wraith unless Arthur explicitly says to.
 
-## V2 Roadmap Frame
+## Post-V2 Roadmap Frame
 
-Before implementation, refine `SPECs/v2-obsidian-tolaria-compatibility-roadmap.md`. Keep V2 focused on compatibility, not a broad product rewrite.
+`SPECs/v2-obsidian-tolaria-compatibility-roadmap.md` is now a historical V2 spec plus deferral record. V2 shipped shared resolver work, asset browsing/opening, Obsidian image/PDF embeds, callouts, frontmatter wikilinks, math decorations, configurable shortcuts, split center panes, and right-sidebar Agent/Terminal/Git/Properties/Outline surfaces.
 
-Likely V2 sequence:
+Known V3/post-V2 follow-ups:
 
-1. Shared vault path/link/asset resolver.
-2. Obsidian image embeds: `![[image.png]]` and path-style variants.
-3. First-class image/PDF browsing or opening.
-4. Obsidian callouts: `> [!important]`, `> [!note]`, etc.
-5. Frontmatter wikilinks that display/navigate cleanly while preserving raw files.
-6. QA pass against Arthur's real vault patterns.
+1. Make note-body Finder image/PDF drag/drop reliable enough to promise.
+2. Polish split-tab UX and tab/split interactions.
+3. Keep docs, release notes, and agent guidance aligned with the shipped source.
+4. Inspect Writer/Tolaria first when a feature likely already has an implementation to adapt.
 
 Useful Tolaria reference areas:
 

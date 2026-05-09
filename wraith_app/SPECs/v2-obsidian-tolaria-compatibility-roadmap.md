@@ -2,21 +2,48 @@
 
 ## Status
 
-Roadmap/spec for discussion. Do not implement from this document until Arthur accepts the product scope, chronological order, and version split.
+Historical V2 roadmap/spec plus current deferral record.
 
-This document is the working surface for defining the whole current Wraith roadmap first, then grouping functionality into buckets, then ordering the buckets chronologically, then splitting them into versioned releases/milestones.
+V2 shipped on 2026-05-09 as `v2.0.0`. Do not read the early "Missing /
+Wanted" inventory below as current app state; many items in it shipped during
+the one-shot V2 release pass. Keep the detailed behavior sections because they
+still document resolver, embed, callout, asset, and frontmatter decisions that
+future work should preserve.
 
-Current session goal: list all roadmap items only. Do not inspect source-code complexity yet. After the item inventory feels complete, start a fresh session to define product iterations using complexity and availability in Wraith/Tolaria/source-code references.
+Current post-V2 use of this document:
 
-The detailed V2 Obsidian/Tolaria compatibility material below remains valid, but V2 is no longer assumed to be the whole Wraith roadmap. After the roadmap is accepted, convert one milestone at a time into implementation tasks.
+- preserve the shipped V2 compatibility decisions;
+- keep the explicit V3 deferrals visible;
+- use Writer/Tolaria source as read-only implementation references when a
+  future feature already exists there;
+- create focused new specs for substantial V3 work instead of reopening the
+  whole V2 plan.
+
+V2 shipped:
+
+- shared vault target resolver;
+- image/PDF asset visibility, search, import, and preview tabs;
+- Markdown image routing and Obsidian image/PDF embed rendering;
+- Obsidian callout rendering;
+- frontmatter wikilink display/navigation;
+- KaTeX math decorations;
+- configurable keyboard shortcuts;
+- split center view;
+- right sidebar Agent/Terminal/Git/Properties/Outline surfaces.
+
+Known V3 deferrals:
+
+- reliable note-body Finder image/PDF drag/drop;
+- split-tab UX and tab/split interaction polish;
+- continued source/docs cleanup after the one-shot release worktree.
 
 ## One-Line Goal
 
 Make Wraith Arthur's daily local vault app: a fast files-first Markdown workspace that preserves plain Markdown as source of truth, keeps the current editor/file-browser/search strengths, fixes missing media/compatibility gaps, and can later grow toward Tolaria-style sync/publishing and optional agent/terminal workflows without becoming a database app.
 
-## Current Functionality Inventory
+## Historical Functionality Inventory
 
-This section captures Arthur's stated wants/needs before chronological ordering or version splitting. Keep unresolved items marked until Arthur decides.
+This section originally captured Arthur's stated wants/needs before chronological ordering or version splitting. It is preserved for context; the status block above and the V2 ship decision below are authoritative for what shipped vs. what moved to V3.
 
 ### Already Working / Preserve
 
@@ -60,23 +87,21 @@ This section captures Arthur's stated wants/needs before chronological ordering 
   - duplicate file works;
   - open containing folder works;
   - filesystem changes are handled with a refresh option.
-- File browser/vault management missing/needed pieces are targeted:
-  - supported non-Markdown files such as images/PDFs are not visible in the file viewer/sidebar yet;
-  - the settings UI has File Associations for workspace include patterns (`*.md`, `*.mdx`, `*.markdown` shown), but this likely currently supports Markdown/text inclusion more than first-class asset visibility;
-  - PDF opening/viewing is not working and is needed;
-  - dragging/dropping external files into the vault/tree to copy/import them is needed; source-code inspection should later determine implementation difficulty and exact sequencing;
-  - no other small file-browser/vault-management gaps are currently known beyond asset visibility/opening, PDF opening/viewing, external drag/drop import, and hotkeys.
+- File browser/vault management V2 status:
+  - supported image/PDF files now appear in the sidebar/search and open in read-only asset tabs;
+  - PDF opening/viewing shipped through in-app asset preview with fallback behavior;
+  - file-tree drag/drop import shipped, including empty folder/tree states;
+  - note-body image/PDF drag/drop remains a V3 deferral because the import/embed preview path is not reliable enough to promise yet.
 - File browser/vault management later/not-needed items:
-  - read-only image file tabs are later, not now;
   - moving files by drag/drop within the tree is later;
   - dragging/dropping folders into the file tree does not work, but is not needed for now because folders can be created from the UI;
   - sorting is not needed beyond existing behavior;
   - recent files / quick reopen is not needed;
   - multi-select files is not needed.
-- Hotkey customization is needed. Wraith already has hotkey support, and Arthur knows the shortcut set he wants. A hardcoded shortcut pass is acceptable if it is much easier, because the command list is not very long; a Settings pane for editable shortcuts is preferred if straightforward.
+- Hotkey customization shipped in V2 through a Preferences section for app-level shortcut visibility/remapping.
 - Markdown/editor compatibility decisions:
-  - Obsidian callouts are not needed yet.
-  - Frontmatter wikilinks displayed as clickable chips/links are very good to have, but not a priority.
+  - Obsidian callouts shipped in V2.
+  - Frontmatter wikilinks displayed as clickable chips/links shipped in V2.
   - Heading fragment scrolling is not important now; heading navigation may come later as file-heading navigation in the sidebar.
   - Embedding/transcluding another note inline is not needed; wikilinks are enough for note-to-note relationships.
   - Tolaria-style embeds for files/assets are the preferred reference behavior for file embeds.
@@ -84,7 +109,7 @@ This section captures Arthur's stated wants/needs before chronological ordering 
   - Markdown tables already work well and do not need roadmap work now.
   - Task checkboxes are not important now.
   - Tags are not needed for now.
-  - LaTeX/math rendering is very good to have and is not working right now.
+  - LaTeX/math rendering shipped in V2.
   - Audio/video embeds are not needed.
   - HTML blocks appear to already render; no major roadmap work unless later testing shows a real gap.
   - Footnotes are not needed.
@@ -102,7 +127,7 @@ This section captures Arthur's stated wants/needs before chronological ordering 
   - left sidebar, right sidebar, and split center panes should be resizable;
   - focus mode is not needed because collapsing left/right sidebars is enough.
 - Right sidebar and split panes are core product architecture for the end-state roadmap, not optional decoration. They become essential as soon as AI embedding exists, because AI workflows need a persistent side surface while notes stay open in the center.
-- Future right-sidebar functions:
+- Right-sidebar functions shipped in V2 or still framed for future polish:
   - terminal, natively opened at the vault root;
   - high-value Tolaria-style AI sidepanel/chatbot interface, very similar to Tolaria's model, that sends chats to CLI agents underneath;
   - the AI/chat surface can partially replace bespoke UI features because Arthur can ask the agent to git commit, pull, refresh, add files, and perform other vault actions;
@@ -114,9 +139,7 @@ This section captures Arthur's stated wants/needs before chronological ordering 
   - nice-looking UI for properties/YAML;
   - wikilinks should work in YAML/properties;
   - relative paths in YAML/properties are also acceptable; Arthur does not strongly prefer wikilinks over relative paths there.
-- AI/agent features are later, not now:
-  - right-sidebar terminal/chatbot as above;
-  - longer-term command to invoke AI in the background, using a CLI-agent `-p` style command such as Claude Code, to directly write into the current note.
+- AI/agent sidepanel and terminal shipped in V2 as early local surfaces; background note-writing workflows remain later.
 - Graph view is eventually interesting, but not now.
 - Backlinks are not needed as a Wraith product feature. If backlink behavior becomes useful later for graph/navigation plumbing, borrow the approach from Tolaria rather than designing a new standalone backlinks surface.
 - Templates are not needed.
@@ -1225,6 +1248,10 @@ Post-MVP unless Arthur expands scope:
 - automatic link rewriting/canonicalization;
 - broad Tolaria semantic/database model.
 
-## Next Step After Acceptance
+## Next Step After V2
 
-Convert `V2.0 Foundation` into a bite-sized implementation plan with exact tasks, tests-first order, and file-level changes. Do not implement V2.1+ until V2.0 resolver behavior is accepted and tested.
+Write focused V3 specs for the accepted deferrals before implementing them:
+
+- note-body image/PDF drag/drop stabilization;
+- split-tab UX polish;
+- any additional post-V2 cleanup Arthur explicitly prioritizes.

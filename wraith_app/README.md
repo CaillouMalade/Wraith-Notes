@@ -18,24 +18,29 @@ at `../writer_source_code/` in the parent repo for diff/reference.
 - `apps/desktop/src/` — React frontend.
 - `apps/desktop/src-tauri/src/` — Rust commands, workspace state, watcher, CLI integration.
 - `apps/website/` — landing page (inherited from Writer; not actively used by Wraith yet).
-- `docs/` — Writer's developer/agent workflow docs (kept as reference; will be migrated as Wraith diverges).
-- `SPECs/` — Writer's feature specs and design notes.
+- `docs/` — inherited Writer developer docs plus reference material.
+- `SPECs/` — Wraith specs and inherited Writer feature notes.
 
 ## Development
 
-This repo uses Vite+ through the `vp` CLI. Use `vp` instead of calling the package
-manager or Vite tooling directly.
+Install dependencies from the repo root:
 
 ```bash
-vp install
-vp dev
+pnpm install
 ```
+
+Use the native Tauri dev loop for real app behavior:
+
+```bash
+pnpm app:dev
+```
+
+`pnpm dev` is frontend/Vite only and does not launch the native Wraith window.
 
 ## Validation
 
 ```bash
-vp check
-vp test
+pnpm --filter desktop run build
 ```
 
 Rust validation runs from the Tauri crate:
