@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { listen } from "@tauri-apps/api/event";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as XTerm } from "@xterm/xterm";
@@ -36,6 +43,7 @@ import { hasFrontmatterLinks, parseFrontmatterLinks } from "@/lib/frontmatter-li
 import { parseYamlEntries } from "@/lib/yaml-entries";
 import { jumpToEditorLine } from "@/lib/editor-navigation";
 import { resolveWikiLink } from "@/lib/wiki-links";
+import { GIT_REFRESH_EVENT, requestGitRefresh } from "@/lib/git-refresh";
 import * as tauri from "@/lib/tauri";
 
 const VIEWS: Array<{ id: RightSidebarView; label: string; icon: typeof AiChat01Icon }> = [
@@ -54,6 +62,45 @@ type AgentMessage = {
 };
 
 const AGENT_PROFILE_STORAGE_KEY = "wraith.agent.profile";
+const DEFAULT_TERMINAL_FONT_FAMILY =
+  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+const DEFAULT_GIT_COMMIT_MESSAGE = "Update vault";
+
+function normalizeTerminalFontFamily(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : DEFAULT_TERMINAL_FONT_FAMILY;
+}
+
+function terminalTheme() {
+  const style = getComputedStyle(document.documentElement);
+  const accent = style.getPropertyValue("--accent").trim() || "#ff6a00";
+  const muted = style.getPropertyValue("--text-muted").trim() || "#8a8a8a";
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  return {
+    background: "#00000000",
+    foreground: isLight ? "#111111" : "#F7F3EA",
+    cursor: accent,
+    selectionBackground: resolveCssColor(
+      `color-mix(in srgb, ${accent} 30%, transparent)`,
+      "rgba(255, 106, 0, 0.3)",
+    ),
+    selectionInactiveBackground: resolveCssColor(
+      "color-mix(in srgb, var(--fg-base) calc(var(--contrast) * 20%), transparent)",
+      "rgba(128, 128, 128, 0.18)",
+    ),
+    brightBlack: muted,
+    brightBlue: accent,
+    brightCyan: accent,
+    brightGreen: "#34c759",
+    brightRed: "#ff453a",
+    brightYellow: "#ff9f0a",
+    scrollbarSliderBackground:
+      "color-mix(in srgb, var(--fg-base) calc(var(--contrast) * 42%), transparent)",
+    scrollbarSliderHoverBackground:
+      "color-mix(in srgb, var(--fg-base) calc(var(--contrast) * 58%), transparent)",
+    scrollbarSliderActiveBackground:
+      "color-mix(in srgb, var(--fg-base) calc(var(--contrast) * 72%), transparent)",
+  };
+}
 
 function parseCommandLine(input: string): string[] {
   const result: string[] = [];
@@ -128,7 +175,7 @@ function OutputBlock({ output }: { output: tauri.CommandOutput | null }) {
   if (!output) return null;
   const text = [output.stdout, output.stderr].filter(Boolean).join("\n").trim();
   return (
-    <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-3 font-mono text-[12px] leading-relaxed text-[var(--text-secondary)]">
+    <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-3 font-mono text-[12px] leading-relaxed text-[var(--text-secondary)]">
       {text || `Exited with status ${output.status}`}
     </pre>
   );
@@ -157,7 +204,7 @@ function PanelIconButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-selected)] disabled:opacity-50"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] transition-[background-color,border-color,color,opacity] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] hover:bg-[var(--surface-selected)] disabled:opacity-50"
     >
       {children}
     </button>
@@ -167,6 +214,11 @@ function PanelIconButton({
 type GitFileStatus = {
   code: string;
   path: string;
+};
+
+type FileChangePayload = {
+  path: string;
+  kind: "modified" | "created" | "deleted" | "renamed";
 };
 
 type ParsedGitStatus = {
@@ -253,11 +305,74 @@ function normalizeGitStatusPath(path: string) {
   return arrow === -1 ? path : path.slice(arrow + 4);
 }
 
+function pluralize(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function formatCheckedAt(timestamp: number | null) {
+  if (!timestamp) return "not checked yet";
+  return `checked ${new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })}`;
+}
+
+function gitSyncSummary(
+  status: ParsedGitStatus | null,
+  statusOutput: tauri.CommandOutput | null,
+): { label: string; tone: "clean" | "pending" | "conflict" | "error" | "loading" } {
+  if (!statusOutput) return { label: "Loading status...", tone: "loading" };
+  if (statusOutput.status !== 0) return { label: commandText(statusOutput) || "Git status failed", tone: "error" };
+  if (!status) return { label: "Loading status...", tone: "loading" };
+
+  const conflicts = status.files.filter((file) => isConflictStatus(file.code)).length;
+  if (conflicts > 0) return { label: pluralize(conflicts, "conflict"), tone: "conflict" };
+
+  if (status.ahead > 0 && status.behind > 0) {
+    return { label: `Diverged: ${status.ahead} ahead, ${status.behind} behind`, tone: "pending" };
+  }
+  if (status.ahead > 0) return { label: pluralize(status.ahead, "commit to push"), tone: "pending" };
+  if (status.behind > 0) return { label: pluralize(status.behind, "commit to pull"), tone: "pending" };
+
+  return { label: status.upstream ? "Remote up to date" : "No upstream configured", tone: "clean" };
+}
+
+function gitChangeListTitle(status: ParsedGitStatus | null) {
+  const files = status?.files ?? [];
+  if (files.length === 0) return "No pending changes";
+  return pluralize(files.length, "pending change");
+}
+
+function gitStateDotStyle(tone: ReturnType<typeof gitSyncSummary>["tone"]) {
+  if (tone === "clean") return { background: "#34c759" };
+  if (tone === "pending") return { background: "#ff9f0a" };
+  if (tone === "conflict" || tone === "error") return { background: "#ff453a" };
+  return { background: "var(--text-muted)" };
+}
+
 function extensionFromPath(path: string) {
   const clean = path.split(/[?#]/)[0] ?? path;
   const name = clean.split(/[\\/]/).pop() ?? clean;
   const dot = name.lastIndexOf(".");
   return dot <= 0 ? "" : name.slice(dot + 1).toLowerCase();
+}
+
+function resolveCssColor(value: string, fallback: string) {
+  if (typeof document === "undefined") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  const probe = document.createElement("span");
+  probe.style.color = fallback;
+  probe.style.color = trimmed;
+  probe.style.position = "absolute";
+  probe.style.pointerEvents = "none";
+  probe.style.opacity = "0";
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return resolved || fallback;
 }
 
 function isMarkdownPath(path: string) {
@@ -441,12 +556,12 @@ function AgentPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap gap-1 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-1">
+      <div className="flex shrink-0 flex-wrap gap-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-1">
         {enabledProfiles.length === 0 ? (
           <button
             type="button"
             onClick={() => editorApi.openSettingsTab()}
-            className="h-7 w-full rounded-md text-[13px] text-[var(--text-muted)] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
+            className="h-7 w-full rounded-[5px] text-[13px] text-[var(--text-muted)] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
           >
             Configure agents
           </button>
@@ -456,7 +571,7 @@ function AgentPanel() {
               key={profile.id}
               type="button"
               onClick={() => setSelectedProfileId(profile.id)}
-              className={`h-7 min-w-0 flex-1 rounded-md px-2 text-[13px] ${
+              className={`h-7 min-w-0 flex-1 rounded-[5px] px-2 text-[13px] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
                 selectedProfile?.id === profile.id
                   ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -468,7 +583,7 @@ function AgentPanel() {
         )}
       </div>
       {selectedProfile && (
-        <div className="min-w-0 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] px-3 py-2">
+        <div className="min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-3 py-2">
           <div className="truncate font-mono text-[12px] text-[var(--text-secondary)]">
             {selectedProfile.command}
           </div>
@@ -477,7 +592,7 @@ function AgentPanel() {
           </div>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-2">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-2">
         {messages.length === 0 ? (
           <div className="px-1 py-1 text-[13px] text-[var(--text-muted)]">
             {selectedProfile
@@ -499,7 +614,7 @@ function AgentPanel() {
                       }
                     : undefined
                 }
-                className={`rounded-lg px-3 py-2 text-[13px] leading-relaxed ${
+                className={`rounded-md px-3 py-2 text-[13px] leading-relaxed ${
                   message.role === "user"
                     ? "border text-[var(--text-primary)]"
                     : message.role === "assistant"
@@ -538,7 +653,7 @@ function AgentPanel() {
           }
         }}
         placeholder="Ask the workspace agent..."
-        className="min-h-24 resize-none rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-input)] p-3 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--focus-border)]"
+        className="min-h-24 resize-none rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-3 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--focus-border)]"
       />
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <button
@@ -574,11 +689,13 @@ function TerminalPanel() {
   const [session, setSession] = useState<tauri.TerminalStartResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const terminalFontFamily = normalizeTerminalFontFamily(useSetting("terminal.font-family"));
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isStartingRef = useRef(false);
+  const terminalFontFamilyRef = useRef(terminalFontFamily);
 
   const resizeTerminal = useCallback(() => {
     const terminal = terminalRef.current;
@@ -628,25 +745,44 @@ function TerminalPanel() {
   }, [resizeTerminal, stopTerminal]);
 
   useEffect(() => {
+    terminalFontFamilyRef.current = terminalFontFamily;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    terminal.options = {
+      fontFamily: terminalFontFamily,
+      theme: terminalTheme(),
+    };
+    requestAnimationFrame(resizeTerminal);
+  }, [resizeTerminal, terminalFontFamily]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const applyTheme = () => {
+      const terminal = terminalRef.current;
+      if (terminal) terminal.options = { theme: terminalTheme() };
+    };
+    const observer = new MutationObserver(applyTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme", "style"] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     let isDisposed = false;
     let unlisten: (() => void) | null = null;
 
-    const style = getComputedStyle(document.documentElement);
     const terminal = new XTerm({
+      allowTransparency: true,
       cursorBlink: true,
       convertEol: false,
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+      fontFamily: terminalFontFamilyRef.current,
       fontSize: 12,
       lineHeight: 1.25,
+      macOptionIsMeta: true,
+      rightClickSelectsWord: true,
       scrollback: 5000,
-      theme: {
-        background: "transparent",
-        foreground: style.getPropertyValue("--text-secondary").trim() || "#d4d4d4",
-        cursor: style.getPropertyValue("--text-primary").trim() || "#ffffff",
-        selectionBackground: style.getPropertyValue("--surface-selected").trim() || "#444444",
-      },
+      theme: terminalTheme(),
     });
     const fitAddon = new FitAddon();
 
@@ -720,13 +856,13 @@ function TerminalPanel() {
       </div>
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-2"
+        className="wraith-terminal-surface min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--line-subtler)] p-2"
       />
     </div>
   );
 }
 
-function GitPanel() {
+function GitPanel({ isActive }: { isActive: boolean }) {
   const [message, setMessage] = useState("");
   const [remoteName, setRemoteName] = useState("origin");
   const [remoteUrl, setRemoteUrl] = useState("");
@@ -735,6 +871,10 @@ function GitPanel() {
   const [statusOutput, setStatusOutput] = useState<tauri.CommandOutput | null>(null);
   const [remoteOutput, setRemoteOutput] = useState<tauri.CommandOutput | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [lastStatusAt, setLastStatusAt] = useState<number | null>(null);
+  const refreshTimerRef = useRef<number | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
   const status = useMemo(() => parseGitStatus(statusOutput), [statusOutput]);
   const remotes = useMemo(() => parseGitRemotes(remoteOutput), [remoteOutput]);
   const conflicts = useMemo(
@@ -744,11 +884,26 @@ function GitPanel() {
   const hasConflicts = conflicts.length > 0;
   const isGitRepository = statusOutput?.status === 0;
   const isMissingGitRepository = isNotGitRepository(statusOutput);
+  const summary = useMemo(() => gitSyncSummary(status, statusOutput), [status, statusOutput]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    const stillPresent = status?.files.some(
+      (file) => file.code === selectedFile.code && file.path === selectedFile.path,
+    );
+    if (!stillPresent) setSelectedFile(null);
+  }, [selectedFile, status]);
 
   const refreshStatus = useCallback(async () => {
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true;
+      return null;
+    }
+    refreshInFlightRef.current = true;
     try {
       const next = await tauri.gitStatus();
       setStatusOutput(next);
+      setLastStatusAt(Date.now());
       setOutput((current) => current ?? next);
       if (next.status === 0) {
         try {
@@ -767,19 +922,70 @@ function GitPanel() {
     } catch (error) {
       const next = { status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
       setStatusOutput(next);
+      setLastStatusAt(Date.now());
       setOutput((current) => current ?? next);
       setRemoteOutput(null);
       return next;
+    } finally {
+      refreshInFlightRef.current = false;
+      if (refreshQueuedRef.current) {
+        refreshQueuedRef.current = false;
+        window.setTimeout(() => {
+          void refreshStatus();
+        }, 50);
+      }
     }
   }, []);
+
+  const scheduleStatusRefresh = useCallback(
+    (delayMs = 180) => {
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = null;
+        void refreshStatus();
+      }, delayMs);
+    },
+    [refreshStatus],
+  );
 
   useEffect(() => {
     void refreshStatus();
     const interval = window.setInterval(() => {
       void refreshStatus();
-    }, 30_000);
-    return () => window.clearInterval(interval);
-  }, [refreshStatus]);
+    }, isActive ? 2_000 : 10_000);
+
+    const handleRefreshRequest = () => scheduleStatusRefresh(80);
+    const handleWindowFocus = () => scheduleStatusRefresh(80);
+    const handleVisibility = () => {
+      if (!document.hidden) scheduleStatusRefresh(80);
+    };
+    const disposeListener = (dispose: () => void) => {
+      try {
+        dispose();
+      } catch {
+        // Tauri may already have dropped the listener during dev/HMR teardown.
+      }
+    };
+
+    const unlistenFile = listen<FileChangePayload>("fs:file-changed", () => scheduleStatusRefresh(160));
+    const unlistenDir = listen<FileChangePayload>("fs:directory-changed", () => scheduleStatusRefresh(160));
+
+    window.addEventListener(GIT_REFRESH_EVENT, handleRefreshRequest);
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
+      window.removeEventListener(GIT_REFRESH_EVENT, handleRefreshRequest);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      void unlistenFile.then(disposeListener).catch(() => {});
+      void unlistenDir.then(disposeListener).catch(() => {});
+    };
+  }, [isActive, refreshStatus, scheduleStatusRefresh]);
 
   async function run(
     action: () => Promise<tauri.CommandOutput>,
@@ -792,7 +998,78 @@ function GitPanel() {
       setOutput(result);
       if (options.clearMessage && result.status === 0) setMessage("");
       if (options.clearRemote && result.status === 0) setRemoteUrl("");
+      requestGitRefresh("git-action");
       await refreshStatus();
+      window.setTimeout(() => void refreshStatus(), 400);
+    } catch (error) {
+      setOutput({ status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  function commitMessage() {
+    return message.trim() || DEFAULT_GIT_COMMIT_MESSAGE;
+  }
+
+  async function checkRemote() {
+    if (isRunning) return;
+    setIsRunning(true);
+    try {
+      const fetch = await tauri.gitFetch();
+      const nextStatus = await refreshStatus();
+      setOutput({
+        status: fetch.status,
+        stdout: [`$ git fetch --prune`, commandText(fetch), nextStatus ? `$ git status --short --branch\n${nextStatus.stdout.trim()}` : ""]
+          .filter(Boolean)
+          .join("\n\n"),
+        stderr: fetch.stderr,
+      });
+    } catch (error) {
+      setOutput({ status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  async function commitAndPush(options: { afterPull?: tauri.CommandOutput } = {}) {
+    if (isRunning) return;
+    setIsRunning(true);
+    try {
+      const parts: string[] = [];
+      let statusCode = options.afterPull?.status ?? 0;
+      let stderr = options.afterPull?.stderr ?? "";
+
+      if (options.afterPull) {
+        parts.push(`$ git pull --ff-only`, commandText(options.afterPull));
+        if (options.afterPull.status !== 0) {
+          setOutput({ status: options.afterPull.status, stdout: parts.filter(Boolean).join("\n\n"), stderr });
+          return;
+        }
+      }
+
+      const latestStatus = parseGitStatus(await tauri.gitStatus());
+      if ((latestStatus?.files.length ?? 0) > 0) {
+        const commit = await tauri.gitCommitAll(commitMessage());
+        parts.push(`$ git add -A && git commit -m "${commitMessage()}"`, commandText(commit));
+        statusCode = commit.status;
+        stderr = [stderr, commit.stderr].filter(Boolean).join("\n");
+        if (commit.status !== 0) {
+          setOutput({ status: statusCode, stdout: parts.filter(Boolean).join("\n\n"), stderr });
+          await refreshStatus();
+          return;
+        }
+        setMessage("");
+      }
+
+      const push = await tauri.gitPush();
+      parts.push(`$ git push`, commandText(push));
+      statusCode = push.status;
+      stderr = [stderr, push.stderr].filter(Boolean).join("\n");
+      setOutput({ status: statusCode, stdout: parts.filter(Boolean).join("\n\n"), stderr });
+      requestGitRefresh(options.afterPull ? "git-sync" : "git-commit-push");
+      await refreshStatus();
+      window.setTimeout(() => void refreshStatus(), 400);
     } catch (error) {
       setOutput({ status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) });
     } finally {
@@ -850,22 +1127,11 @@ function GitPanel() {
 
   async function sync() {
     if (isRunning) return;
-    setIsRunning(true);
     try {
       const pull = await tauri.gitPull();
-      const push = pull.status === 0 ? await tauri.gitPush() : null;
-      setOutput({
-        status: push?.status ?? pull.status,
-        stdout: [`$ git pull --ff-only`, commandText(pull), push ? `$ git push` : "", push ? commandText(push) : ""]
-          .filter(Boolean)
-          .join("\n\n"),
-        stderr: "",
-      });
-      await refreshStatus();
+      await commitAndPush({ afterPull: pull });
     } catch (error) {
       setOutput({ status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) });
-    } finally {
-      setIsRunning(false);
     }
   }
 
@@ -874,7 +1140,11 @@ function GitPanel() {
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-3">
           <div className="flex items-center gap-2">
-            <HugeiconsIcon icon={FolderOpenIcon} size={15} color="currentColor" strokeWidth={2} />
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={gitStateDotStyle("error")}
+            />
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-medium text-[var(--text-secondary)]">
                 No Git repository
@@ -902,20 +1172,18 @@ function GitPanel() {
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-subtle)] p-3">
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={GitBranchIcon} size={15} color="currentColor" strokeWidth={2} />
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_color-mix(in_srgb,currentColor_12%,transparent)]"
+            style={gitStateDotStyle(summary.tone)}
+          />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-medium text-[var(--text-secondary)]">
-              {status?.branch ?? "Git"}
+              {summary.label}
             </div>
             <div className="truncate text-[12px] text-[var(--text-muted)]">
               {status
-                ? status.upstream
-                  ? `${status.upstream}${status.ahead ? ` ahead ${status.ahead}` : ""}${
-                      status.behind ? ` behind ${status.behind}` : ""
-                    }`
-                  : remotes.length > 0
-                    ? "Remote configured, no upstream"
-                    : "No remote"
+                ? `${status.branch}${status.upstream ? ` -> ${status.upstream}` : remotes.length > 0 ? " (no upstream)" : " (no remote)"} · ${formatCheckedAt(lastStatusAt)}`
                 : commandText(statusOutput) || "Loading status..."}
             </div>
           </div>
@@ -924,7 +1192,7 @@ function GitPanel() {
           </PanelIconButton>
         </div>
         {remotes.length > 0 && (
-          <div className="mt-3 flex flex-col gap-1 rounded-md border border-[var(--line-subtle)] bg-[var(--surface-input)] p-2">
+          <div className="mt-3 flex flex-col gap-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-2">
             {remotes.map((remote) => (
               <div
                 key={remote.name}
@@ -937,7 +1205,7 @@ function GitPanel() {
           </div>
         )}
         {hasConflicts && (
-          <div className="mt-3 rounded-md border border-[var(--line-subtle)] bg-[var(--surface-input)] p-2 text-[12px] text-[var(--text-secondary)]">
+          <div className="mt-3 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-2 text-[12px] text-[var(--text-secondary)]">
             <div className="flex items-center gap-2 text-[var(--accent)]">
               <HugeiconsIcon icon={AlertCircleIcon} size={14} color="currentColor" strokeWidth={2} />
               <span>
@@ -966,35 +1234,41 @@ function GitPanel() {
           </div>
         )}
         {status ? (
-          <div className="mt-3 max-h-44 overflow-auto rounded-md border border-[var(--line-subtle)] bg-[var(--surface-input)] p-1">
+          <div className="mt-3 max-h-44 overflow-auto rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-1">
+            <div className="flex items-center justify-between px-2 py-1.5 text-[12px]">
+              <span className="font-medium text-[var(--text-secondary)]">{gitChangeListTitle(status)}</span>
+              <span className="text-[var(--text-muted)]">{formatCheckedAt(lastStatusAt)}</span>
+            </div>
             {status.files.length === 0 ? (
-              <div className="px-2 py-1.5 text-[13px] text-[var(--text-muted)]">Working tree clean</div>
+              <div className="px-2 pb-2 text-[13px] text-[var(--text-muted)]">Working tree clean</div>
             ) : (
-              status.files.map((file) => (
-                <div
-                  key={`${file.code}-${file.path}`}
-                  className={`grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded px-2 py-1.5 text-[12px] ${
-                    selectedFile?.path === file.path ? "bg-[var(--surface-selected)]" : ""
-                  }`}
-                  onMouseDown={() => setSelectedFile(file)}
-                >
-                  <span className={isConflictStatus(file.code) ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>
-                    {gitStatusLabel(file.code)}
-                  </span>
-                  <span className="truncate font-mono text-[var(--text-secondary)]">{file.path}</span>
-                  <span className="flex gap-1">
-                    <PanelIconButton label={`Open ${file.path}`} onClick={() => void openChangedFile(file)}>
-                      <HugeiconsIcon icon={FileViewIcon} size={14} color="currentColor" strokeWidth={2} />
-                    </PanelIconButton>
-                    <PanelIconButton label={`Reveal ${file.path}`} onClick={() => void revealChangedFile(file)}>
-                      <HugeiconsIcon icon={FolderOpenIcon} size={14} color="currentColor" strokeWidth={2} />
-                    </PanelIconButton>
-                    <PanelIconButton label={`Diff ${file.path}`} onClick={() => void showDiff(file)}>
-                      <HugeiconsIcon icon={FileDiffIcon} size={14} color="currentColor" strokeWidth={2} />
-                    </PanelIconButton>
-                  </span>
-                </div>
-              ))
+              <div className="border-t border-[var(--line-subtler)] pt-1">
+                {status.files.map((file) => (
+                  <div
+                    key={`${file.code}-${file.path}`}
+                    className={`grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded px-2 py-1.5 text-[12px] ${
+                      selectedFile?.path === file.path ? "bg-[var(--surface-selected)]" : ""
+                    }`}
+                    onMouseDown={() => setSelectedFile(file)}
+                  >
+                    <span className={isConflictStatus(file.code) ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>
+                      {gitStatusLabel(file.code)}
+                    </span>
+                    <span className="truncate font-mono text-[var(--text-secondary)]">{file.path}</span>
+                    <span className="flex gap-1">
+                      <PanelIconButton label={`Open ${file.path}`} onClick={() => void openChangedFile(file)}>
+                        <HugeiconsIcon icon={FileViewIcon} size={14} color="currentColor" strokeWidth={2} />
+                      </PanelIconButton>
+                      <PanelIconButton label={`Reveal ${file.path}`} onClick={() => void revealChangedFile(file)}>
+                        <HugeiconsIcon icon={FolderOpenIcon} size={14} color="currentColor" strokeWidth={2} />
+                      </PanelIconButton>
+                      <PanelIconButton label={`Diff ${file.path}`} onClick={() => void showDiff(file)}>
+                        <HugeiconsIcon icon={FileDiffIcon} size={14} color="currentColor" strokeWidth={2} />
+                      </PanelIconButton>
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         ) : null}
@@ -1005,13 +1279,13 @@ function GitPanel() {
             value={remoteName}
             onChange={(event) => setRemoteName(event.target.value)}
             placeholder="origin"
-            className="h-8 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+            className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
           />
           <input
             value={remoteUrl}
             onChange={(event) => setRemoteUrl(event.target.value)}
             placeholder="Remote URL"
-            className="h-8 min-w-0 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+            className="h-8 min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
           />
           <PanelIconButton
             label="Add Git remote"
@@ -1030,10 +1304,10 @@ function GitPanel() {
         <button
           className="right-sidebar-button"
           type="button"
-          onClick={() => void sync()}
+          onClick={() => void checkRemote()}
           disabled={isRunning || !isGitRepository || hasConflicts}
         >
-          Sync
+          Check
         </button>
         <button className="right-sidebar-button" type="button" onClick={() => void run(tauri.gitPull)} disabled={isRunning || !isGitRepository || hasConflicts}>
           <span className="inline-flex items-center justify-center gap-1.5">
@@ -1041,27 +1315,35 @@ function GitPanel() {
             Pull
           </span>
         </button>
-        <button className="right-sidebar-button" type="button" onClick={() => void run(tauri.gitPush)} disabled={isRunning || !isGitRepository || hasConflicts}>
+        <button className="right-sidebar-button" type="button" onClick={() => void commitAndPush()} disabled={isRunning || !isGitRepository || hasConflicts}>
           <span className="inline-flex items-center justify-center gap-1.5">
             <HugeiconsIcon icon={ArrowUp01Icon} size={13} color="currentColor" strokeWidth={2} />
             Push
           </span>
         </button>
-        <button className="right-sidebar-button" type="button" onClick={() => void showDiff(selectedFile)} disabled={isRunning || !isGitRepository}>
-          Diff
+        <button
+          className="right-sidebar-button"
+          type="button"
+          onClick={() => void sync()}
+          disabled={isRunning || !isGitRepository || hasConflicts}
+        >
+          Sync
         </button>
       </div>
+      <button className="right-sidebar-button" type="button" onClick={() => void showDiff(selectedFile)} disabled={isRunning || !isGitRepository}>
+        Diff
+      </button>
       <input
         value={message}
         onChange={(event) => setMessage(event.target.value)}
-        placeholder="Commit message"
-        className="h-8 rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+        placeholder={`Commit message (${DEFAULT_GIT_COMMIT_MESSAGE})`}
+        className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
       />
       <button
         className="right-sidebar-button"
         type="button"
-        disabled={!message.trim() || isRunning || !isGitRepository || hasConflicts}
-        onClick={() => void run(() => tauri.gitCommitAll(message.trim()), { clearMessage: true })}
+        disabled={isRunning || !isGitRepository || hasConflicts}
+        onClick={() => void run(() => tauri.gitCommitAll(commitMessage()), { clearMessage: true })}
       >
         Commit All
       </button>
@@ -1191,7 +1473,7 @@ export function RightSidebar() {
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-[var(--line-subtle)] bg-[var(--bg)] pt-[var(--chrome-control-padding)]">
       <div className="flex items-center gap-1 border-b border-[var(--line-subtle)] px-3 py-2">
-        <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 rounded-lg bg-[var(--surface-subtle)] p-1">
+        <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 rounded-md bg-[var(--surface-subtle)] p-1">
           {VIEWS.map((candidate) => (
             <button
               key={candidate.id}
@@ -1199,7 +1481,7 @@ export function RightSidebar() {
               title={candidate.label}
               aria-label={candidate.label}
               onClick={() => setView(candidate.id)}
-              className={`flex h-7 items-center justify-center rounded-md ${
+              className={`flex h-7 items-center justify-center rounded-[5px] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
                 view === candidate.id
                   ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -1214,7 +1496,7 @@ export function RightSidebar() {
           aria-label="Close right sidebar"
           title="Close right sidebar"
           onClick={() => setRightSidebarOpen(false)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
         >
           <HugeiconsIcon icon={PanelRightCloseIcon} size={16} color="currentColor" strokeWidth={2} />
         </button>
@@ -1232,7 +1514,7 @@ export function RightSidebar() {
         )}
         {isMounted("git") && (
           <div className={panelClass("git")} aria-hidden={view !== "git"}>
-            <GitPanel />
+            <GitPanel isActive={view === "git"} />
           </div>
         )}
         {isMounted("properties") && (

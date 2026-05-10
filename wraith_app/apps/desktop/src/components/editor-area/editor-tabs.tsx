@@ -65,9 +65,9 @@ function EditorTabButton({
         event.preventDefault();
         onContextMenu(event, tab);
       }}
-      className={` group relative flex shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] px-3.5 text-[13px] leading-[1.15] select-none max-w-[180px] h-[var(--chrome-control-height)] ${
+      className={` group relative flex h-[var(--chrome-control-height)] max-w-[180px] shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] px-3.5 text-[13px] leading-[1.15] select-none transition-[background-color,color,box-shadow,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-playful-ease)] hover:-translate-y-px active:translate-y-0 ${
         isActive
-          ? "bg-[var(--tab-active-bg)] text-[var(--text-secondary)] backdrop-blur-2xl"
+          ? "bg-[var(--tab-active-bg)] text-[var(--text-secondary)] shadow-[0_1px_0_color-mix(in_srgb,var(--fg-base)_calc(var(--contrast)*12%),transparent)] backdrop-blur-2xl"
           : "bg-transparent text-[var(--text-muted)] hover:bg-[var(--tab-active-bg)] hover:text-[var(--text-secondary)] hover:backdrop-blur-2xl"
       }`}
     >
@@ -84,7 +84,7 @@ function EditorTabButton({
         {title}
       </span>
       <div
-        className="pointer-events-none absolute inset-y-0 right-0 flex translate-x-full items-center justify-end pr-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+        className="pointer-events-none absolute inset-y-0 right-0 flex translate-x-full items-center justify-end pr-1 opacity-0 transition-[opacity,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] group-hover:translate-x-0 group-hover:opacity-100"
         style={{ width: 40 }}
       >
         <button
@@ -237,7 +237,7 @@ export function EditorTabs({ tabsOverride, activeTabIdOverride, pane }: EditorTa
               const isActive = tab.id === activeTabId;
 
               return (
-                <div key={tab.id} data-tab-id={tab.id} className="flex items-center">
+                <div key={tab.id} data-tab-id={tab.id} className="wraith-tab-shell flex items-center">
                   <EditorTabButton
                     tab={tab}
                     isActive={isActive}

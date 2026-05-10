@@ -438,6 +438,7 @@ pub fn run() {
             commands::tools::git_add_remote,
             commands::tools::git_diff,
             commands::tools::git_pull,
+            commands::tools::git_fetch,
             commands::tools::git_push,
             commands::tools::git_commit_all,
             commands::tools::run_agent_prompt,

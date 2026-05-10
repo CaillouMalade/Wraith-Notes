@@ -22,6 +22,7 @@ import {
 } from "@/hooks/editor-api";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import * as tauri from "@/lib/tauri";
+import { requestGitRefresh } from "@/lib/git-refresh";
 import { getFileStem, getParentDir, getRelativePath } from "@/lib/paths";
 import {
   elementFromNativeDrop,
@@ -117,6 +118,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [isRootDropTarget, setIsRootDropTarget] = useState(false);
 
   const entries = directoryCache.get(rootPath) ?? [];
 
@@ -144,6 +146,13 @@ export function FileTree({ rootPath }: FileTreeProps) {
   useEffect(() => {
     let isDisposed = false;
     let unlisten: (() => void) | null = null;
+    const disposeNativeDropListener = (dispose: (() => void) | null) => {
+      try {
+        dispose?.();
+      } catch {
+        // Tauri can already have dropped the handler during dev/HMR teardown.
+      }
+    };
 
     void listenForNativeFileDrops((payload: NativeFileDropPayload) => {
       if (isDisposed) return;
@@ -161,13 +170,16 @@ export function FileTree({ rootPath }: FileTreeProps) {
 
       void tauri
         .importPaths(targetDir, paths)
-        .then(() => refreshDirectory(targetDir))
+        .then(() => {
+          requestGitRefresh("native-file-import");
+          return refreshDirectory(targetDir);
+        })
         .catch((error: unknown) => {
           showImportError(targetDir, error);
         });
     }).then((dispose) => {
       if (isDisposed) {
-        dispose();
+        disposeNativeDropListener(dispose);
       } else {
         unlisten = dispose;
       }
@@ -175,7 +187,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
 
     return () => {
       isDisposed = true;
-      unlisten?.();
+      disposeNativeDropListener(unlisten);
     };
   }, [refreshDirectory, rootPath]);
 
@@ -251,6 +263,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
           await tauri.renameEntry(entry.path, newPath);
           rewritePathPrefix(entry.path, newPath);
           rewriteExpandedDir(entry.path, newPath);
+          requestGitRefresh("folder-renamed");
           await refreshDirectory(parent);
         } catch (error) {
           window.alert(
@@ -274,6 +287,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
           }
           await tauri.renameEntry(entry.path, newPath);
           renameOpenFile(entry.path, newPath);
+          requestGitRefresh("file-renamed");
           await refreshDirectory(parent);
         } catch (error) {
           window.alert(
@@ -344,6 +358,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
           void (async () => {
             try {
               const newPath = await duplicateFile(entry.path, { binary: !entry.is_markdown });
+              requestGitRefresh("file-duplicated");
               await refreshDirectory(parent);
               if (entry.is_markdown) {
                 await openFileInNewTabAction(newPath);
@@ -382,6 +397,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
             try {
               await tauri.deleteEntry(entry.path);
               removePathReferences(entry.path);
+              requestGitRefresh("file-deleted");
               await refreshDirectory(parent);
             } catch (error) {
               window.alert(
@@ -406,6 +422,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
             try {
               const filePath = await resolveUniqueName(entry.path, "Untitled", ".md");
               await tauri.createFile(filePath);
+              requestGitRefresh("file-created");
               // Expand the folder so the new file is visible
               if (!expandedDirs.has(entry.path)) {
                 await toggleDirectory(entry.path);
@@ -425,6 +442,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
             try {
               const folderPath = await resolveUniqueName(entry.path, "Untitled Folder", "");
               await tauri.createDirectory(folderPath);
+              requestGitRefresh("folder-created");
               // Expand the parent folder so the new folder is visible
               if (!expandedDirs.has(entry.path)) {
                 await toggleDirectory(entry.path);
@@ -478,6 +496,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
               await tauri.deleteEntry(entry.path);
               removePathsWithPrefix(entry.path);
               invalidatePath(entry.path);
+              requestGitRefresh("folder-deleted");
               await refreshDirectory(parent);
             } catch (error) {
               window.alert(
@@ -532,6 +551,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
                   await tauri.deleteEntry(p);
                   removePathReferences(p);
                   parentDirs.add(getParentDir(p));
+                  requestGitRefresh("bulk-delete");
                 } catch (error) {
                   window.alert(
                     `Failed to delete "${p}": ${error instanceof Error ? error.message : String(error)}`,
@@ -584,7 +604,10 @@ export function FileTree({ rootPath }: FileTreeProps) {
 
       const targetDir = entry.is_dir ? entry.path : getParentDir(entry.path);
       void importDroppedFiles(files, targetDir)
-        .then(() => refreshDirectory(targetDir))
+        .then(() => {
+          requestGitRefresh("file-import");
+          return refreshDirectory(targetDir);
+        })
         .catch((error: unknown) => {
           showImportError(targetDir, error);
         });
@@ -592,29 +615,57 @@ export function FileTree({ rootPath }: FileTreeProps) {
     [refreshDirectory],
   );
 
+  const clearRootDropTarget = useCallback(() => {
+    setIsRootDropTarget(false);
+  }, []);
+
   return (
     <div
       data-file-tree-root="true"
-      className="flex min-h-16 flex-col gap-px py-2"
+      className={`flex min-h-16 flex-col gap-px rounded-md py-2 transition-[background-color,box-shadow] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
+        isRootDropTarget
+          ? "bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_28%,transparent)]"
+          : ""
+      }`}
       role="tree"
       aria-label="File tree"
+      onDragEnter={(event) => {
+        if (event.dataTransfer.types.includes("Files")) setIsRootDropTarget(true);
+      }}
+      onDragLeave={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+        clearRootDropTarget();
+      }}
       onDragOver={(event) => {
-        if (event.dataTransfer.files.length > 0) event.preventDefault();
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
       }}
       onDrop={(event) => {
+        clearRootDropTarget();
         const files = event.dataTransfer.files;
         if (!files || files.length === 0) return;
         event.preventDefault();
         void importDroppedFiles(files, rootPath)
-          .then(() => refreshDirectory(rootPath))
+          .then(() => {
+            requestGitRefresh("root-file-import");
+            return refreshDirectory(rootPath);
+          })
           .catch((error: unknown) => {
             showImportError(rootPath, error);
           });
       }}
     >
       {flatItems.length === 0 ? (
-        <div className="rounded-lg px-2 py-3 text-[13px] text-[var(--text-muted)]">
-          No files
+        <div
+          className={`rounded-md border px-2 py-3 text-[13px] transition-colors duration-[var(--motion-quick-duration)] ${
+            isRootDropTarget
+              ? "border-dashed border-[var(--accent)] text-[var(--text-secondary)]"
+              : "border-transparent text-[var(--text-muted)]"
+          }`}
+        >
+          {isRootDropTarget ? "Drop files here" : "No files"}
         </div>
       ) : (
         flatItems.map((item) => (

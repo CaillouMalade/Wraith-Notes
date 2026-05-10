@@ -292,6 +292,10 @@ export function gitPull(): Promise<CommandOutput> {
   return invoke("git_pull");
 }
 
+export function gitFetch(): Promise<CommandOutput> {
+  return invoke("git_fetch");
+}
+
 export function gitPush(): Promise<CommandOutput> {
   return invoke("git_push");
 }

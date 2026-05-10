@@ -327,6 +327,14 @@
       "default": 30
     },
     {
+      "key": "terminal.font-family",
+      "label": "Font Family",
+      "description": "CSS font stack for the integrated terminal. Use any installed font name or stack.",
+      "category": "Terminal",
+      "type": "string",
+      "default": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+    },
+    {
       "key": "agents.profiles",
       "label": "Agent Profiles",
       "description": "Configured local CLI agents for the right sidebar chat",

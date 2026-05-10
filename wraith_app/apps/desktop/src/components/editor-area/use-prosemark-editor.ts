@@ -20,7 +20,7 @@ import {
   openEditorSearch,
   useEditorSearchStore,
 } from "./editor-search-store";
-import { EDITOR_SAFE_SCROLL_MARGIN } from "./editor-scroll-container";
+import { EDITOR_SAFE_SCROLL_MARGIN, EDITOR_TYPING_SCROLL_MARGIN } from "./editor-scroll-container";
 
 // Invisible CodeMirror search panel: returning a hidden DOM here flips
 // `searchState.panel` to truthy, which is what gates the built-in match
@@ -571,6 +571,7 @@ function createEditorExtensions(
     // next/all). The scrollHandler below reads this to know whether to
     // apply our safe-zone scroll, instead of running on every cursor move.
     searchScrollIntent,
+    EditorView.scrollMargins.of(() => ({ bottom: EDITOR_TYPING_SCROLL_MARGIN })),
     // Override scrollIntoView only for search/replace navigation so matches
     // land in the clear zone of the *outer* scroll container (the
     // EditorScrollContainer is wrapped by a fade mask + 120px progressive

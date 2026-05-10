@@ -856,6 +856,15 @@ pub async fn git_pull(
 }
 
 #[tauri::command]
+pub async fn git_fetch(
+    webview: tauri::Webview,
+    app: tauri::AppHandle,
+) -> Result<CommandOutput, AppError> {
+    let workspace = current_workspace(&webview, &app)?;
+    blocking(move || run_program(workspace, "git", &["fetch", "--prune"])).await
+}
+
+#[tauri::command]
 pub async fn git_push(
     webview: tauri::Webview,
     app: tauri::AppHandle,

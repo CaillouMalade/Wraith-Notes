@@ -9,7 +9,7 @@
   --pm-code-btn-background-color: var(--item-hover-bg);
   --pm-code-btn-hover-background-color: var(--item-active-bg);
   --pm-blockquote-vertical-line-background-color: var(--blockquote-border);
-  --pm-cursor-color: var(--text-primary);
+  --pm-cursor-color: var(--accent);
 
   --pm-syntax-link: var(--link-color);
   --pm-syntax-keyword: oklch(70.05% 0.217 296.83);
@@ -32,7 +32,13 @@
    source order. Bump specificity here so the cursor stays readable in dark mode. */
 .cm-editor .cm-cursorLayer .cm-cursor,
 .cm-editor .cm-cursorLayer .cm-dropCursor {
-  border-left-color: var(--text-primary);
+  border-left-width: 2px;
+  border-left-color: var(--accent);
+  margin-left: -1px;
+}
+
+.cm-editor .cm-cursorLayer .cm-dropCursor {
+  border-left-color: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
 }
 
 /* Selection — dimmed accent. CodeMirror's drawSelection extension paints

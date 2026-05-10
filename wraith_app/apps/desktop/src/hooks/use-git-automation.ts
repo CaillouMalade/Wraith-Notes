@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
+import { requestGitRefresh } from "@/lib/git-refresh";
 import * as tauri from "@/lib/tauri";
 
 type ParsedStatus = {
@@ -55,7 +56,9 @@ async function maybePush(hasConfiguredRemote: boolean) {
   const push = await tauri.gitPush();
   if (push.status !== 0) {
     console.warn("[git-automation] AutoGit push failed", push.stderr || push.stdout);
+    return;
   }
+  requestGitRefresh("autogit-push");
 }
 
 export function useGitAutomation() {
@@ -140,6 +143,8 @@ export function useGitAutomation() {
           const pull = await tauri.gitPull();
           if (pull.status !== 0) {
             console.warn("[git-automation] Auto pull failed", pull.stderr || pull.stdout);
+          } else {
+            requestGitRefresh("auto-pull");
           }
         }
 
@@ -158,6 +163,7 @@ export function useGitAutomation() {
           console.warn("[git-automation] AutoGit commit failed", commit.stderr || commit.stdout);
           return;
         }
+        requestGitRefresh("autogit-commit");
         await maybePush(configuredRemote);
       } catch (error) {
         console.warn("[git-automation] Automation tick failed", error);

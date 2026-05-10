@@ -1,18 +1,35 @@
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   useActiveTab,
   useActiveTabId,
   useOpenTabs,
   useSetActiveSplitPane,
+  useSplitViewEnabled,
   useSplitPaneActiveTabId,
   useSplitPaneTabIds,
-  useSplitViewEnabled,
   type SplitPaneId,
 } from "@/hooks/use-tabs";
+import { openAssetInPane, openFileInPane } from "@/hooks/editor-api";
 import { pageKind } from "./page-kinds";
 import { EditorSearchOverlay } from "./editor-search-overlay";
 import { EditorTabs } from "./editor-tabs";
 import { useSidebar } from "@/hooks/use-sidebar";
+import {
+  getCurrentFileTreeDrag,
+  WRAITH_FILE_TREE_DRAG_TYPE,
+  WRAITH_FILE_TREE_POINTER_DRAG_CANCEL_EVENT,
+  WRAITH_FILE_TREE_POINTER_DRAG_END_EVENT,
+  WRAITH_FILE_TREE_POINTER_DRAG_MOVE_EVENT,
+  type WraithFileTreeDragPayload,
+  type WraithFileTreePointerDragDetail,
+} from "@/lib/drag-types";
 
 function clampSplitRatio(value: number) {
   return Math.max(0.25, Math.min(0.75, value));
@@ -28,9 +45,12 @@ function EditorArea() {
   const setActiveSplitPane = useSetActiveSplitPane();
   const { isSidebarCollapsed } = useSidebar();
   const splitContainerRef = useRef<HTMLDivElement>(null);
+  const editorDropRootRef = useRef<HTMLDivElement>(null);
   const splitRatioRef = useRef(0.5);
+  const splitDropDepthRef = useRef(0);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [isDraggingSplit, setIsDraggingSplit] = useState(false);
+  const [splitDropPane, setSplitDropPane] = useState<SplitPaneId | null>(null);
   const tabsById = new Map(tabs.map((tab) => [tab.id, tab]));
   const splitTabs = {
     left: splitPaneTabIds.left.map((id) => tabsById.get(id)).filter((tab): tab is (typeof tabs)[number] => Boolean(tab)),
@@ -90,13 +110,110 @@ function EditorArea() {
     window.addEventListener("pointercancel", handlePointerCancel);
   }, []);
 
+  const hasFileTreeDrag = useCallback((event: DragEvent<HTMLElement>) => {
+    return (
+      Array.from(event.dataTransfer.types).includes(WRAITH_FILE_TREE_DRAG_TYPE) ||
+      getCurrentFileTreeDrag() !== null
+    );
+  }, []);
+
+  const paneFromClientX = useCallback(
+    (clientX: number): SplitPaneId => {
+      if (!splitContainerRef.current || !isSplitView) return "right";
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      return clientX < rect.left + rect.width / 2 ? "left" : "right";
+    },
+    [isSplitView],
+  );
+
+  const parseFileTreeDrop = useCallback((event: DragEvent<HTMLElement>) => {
+    try {
+      const raw = event.dataTransfer.getData(WRAITH_FILE_TREE_DRAG_TYPE);
+      if (!raw) return getCurrentFileTreeDrag();
+      return JSON.parse(raw) as WraithFileTreeDragPayload;
+    } catch {
+      return getCurrentFileTreeDrag();
+    }
+  }, []);
+
+  const clearSplitDrop = useCallback(() => {
+    splitDropDepthRef.current = 0;
+    setSplitDropPane(null);
+  }, []);
+
+  const isInsideEditorDropRoot = useCallback((clientX: number, clientY: number) => {
+    const rect = editorDropRootRef.current?.getBoundingClientRect();
+    if (!rect) return false;
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  }, []);
+
+  const openSplitPayload = useCallback((payload: WraithFileTreeDragPayload, pane: SplitPaneId) => {
+    if (payload.fileKind === "markdown") {
+      void openFileInPane(payload.path, pane).catch((error: unknown) => {
+        window.alert(
+          `Failed to open in split: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+      return;
+    }
+    openAssetInPane(payload.path, payload.fileKind, pane);
+  }, []);
+
+  const handleSplitDrop = useCallback(
+    (event: DragEvent<HTMLElement>) => {
+      if (!hasFileTreeDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const payload = parseFileTreeDrop(event);
+      const pane = paneFromClientX(event.clientX);
+      clearSplitDrop();
+      if (!payload) return;
+
+      openSplitPayload(payload, pane);
+    },
+    [clearSplitDrop, hasFileTreeDrag, openSplitPayload, paneFromClientX, parseFileTreeDrop],
+  );
+
+  useEffect(() => {
+    const dragDetail = (event: Event) =>
+      (event as CustomEvent<WraithFileTreePointerDragDetail>).detail ?? null;
+
+    const handlePointerDragMove = (event: Event) => {
+      const detail = dragDetail(event);
+      if (!detail || !isInsideEditorDropRoot(detail.clientX, detail.clientY)) {
+        setSplitDropPane(null);
+        return;
+      }
+      setSplitDropPane(paneFromClientX(detail.clientX));
+    };
+
+    const handlePointerDragEnd = (event: Event) => {
+      const detail = dragDetail(event);
+      clearSplitDrop();
+      if (!detail || !isInsideEditorDropRoot(detail.clientX, detail.clientY)) return;
+      openSplitPayload(detail.payload, paneFromClientX(detail.clientX));
+    };
+
+    const handlePointerDragCancel = () => clearSplitDrop();
+
+    window.addEventListener(WRAITH_FILE_TREE_POINTER_DRAG_MOVE_EVENT, handlePointerDragMove);
+    window.addEventListener(WRAITH_FILE_TREE_POINTER_DRAG_END_EVENT, handlePointerDragEnd);
+    window.addEventListener(WRAITH_FILE_TREE_POINTER_DRAG_CANCEL_EVENT, handlePointerDragCancel);
+
+    return () => {
+      window.removeEventListener(WRAITH_FILE_TREE_POINTER_DRAG_MOVE_EVENT, handlePointerDragMove);
+      window.removeEventListener(WRAITH_FILE_TREE_POINTER_DRAG_END_EVENT, handlePointerDragEnd);
+      window.removeEventListener(WRAITH_FILE_TREE_POINTER_DRAG_CANCEL_EVENT, handlePointerDragCancel);
+    };
+  }, [clearSplitDrop, isInsideEditorDropRoot, openSplitPayload, paneFromClientX]);
+
   function renderPane(pane: SplitPaneId) {
     const paneTabs = splitTabs[pane];
     const paneActiveId = splitPaneActiveTabId[pane] ?? paneTabs[0]?.id ?? null;
     const paneChromeLeft = pane === "left" && isSidebarCollapsed ? 132 : 12;
     return (
       <div
-        className="relative h-full min-h-0 min-w-0 overflow-hidden"
+        className="wraith-split-pane relative h-full min-h-0 min-w-0 overflow-hidden"
         onMouseDown={() => setActiveSplitPane(pane)}
       >
         <div
@@ -119,12 +236,38 @@ function EditorArea() {
   }
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div
+      ref={editorDropRootRef}
+      className="relative h-full overflow-hidden"
+      onDragEnter={(event) => {
+        if (!hasFileTreeDrag(event)) return;
+        event.preventDefault();
+        splitDropDepthRef.current += 1;
+        setSplitDropPane(paneFromClientX(event.clientX));
+      }}
+      onDragOver={(event) => {
+        if (!hasFileTreeDrag(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setSplitDropPane(paneFromClientX(event.clientX));
+      }}
+      onDragLeave={(event) => {
+        if (!hasFileTreeDrag(event)) return;
+        splitDropDepthRef.current = Math.max(0, splitDropDepthRef.current - 1);
+        if (splitDropDepthRef.current === 0) setSplitDropPane(null);
+      }}
+      onDrop={handleSplitDrop}
+    >
       {isSplitView && splitTabs.left.length > 0 && splitTabs.right.length > 0 ? (
         <div
           ref={splitContainerRef}
           className="grid h-full min-h-0 overflow-hidden"
-          style={{ gridTemplateColumns: `${splitRatio}fr 0 ${1 - splitRatio}fr` }}
+          style={{
+            gridTemplateColumns: `${splitRatio}fr 0 ${1 - splitRatio}fr`,
+            transition: isDraggingSplit
+              ? "none"
+              : "grid-template-columns var(--motion-chrome-duration) var(--motion-soft-ease)",
+          }}
         >
           <div className="relative h-full min-h-0 min-w-0 overflow-hidden border-r border-[var(--line-subtle)]">
             {renderPane("left")}
@@ -153,6 +296,17 @@ function EditorArea() {
           })}
         </div>
       )}
+      {splitDropPane ? (
+        <div
+          className={`pointer-events-none absolute inset-y-0 z-[45] flex items-center justify-center p-4 ${
+            splitDropPane === "left" ? "left-0 right-1/2" : "left-1/2 right-0"
+          }`}
+        >
+          <div className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[13px] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_22%,transparent)] backdrop-blur-sm">
+            Open in {splitDropPane} split
+          </div>
+        </div>
+      ) : null}
       {activeTab ? pageKind(activeTab.location).renderFooter?.(activeTab.location) : null}
       <EditorSearchOverlay />
     </div>

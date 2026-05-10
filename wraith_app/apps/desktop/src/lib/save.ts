@@ -2,6 +2,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { OpenFile } from "@/hooks/editor-api";
 import { serializeDocument } from "@/lib/frontmatter";
+import { requestGitRefresh } from "@/lib/git-refresh";
 import * as tauri from "@/lib/tauri";
 
 const THROTTLE_MS = 1000;
@@ -125,6 +126,7 @@ async function performSave(path: string, controller = getSaveController(path)) {
 
     shouldReschedule = serializeForSave(latestFile) !== full;
     useEditorStore.getState().markSaved(path, full, shouldReschedule);
+    requestGitRefresh("file-saved");
   } catch (err) {
     console.error(`[save] Failed to save ${path}:`, err);
     const message = err instanceof Error ? err.message : String(err);

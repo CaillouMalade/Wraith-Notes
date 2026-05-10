@@ -36,6 +36,12 @@ export function AppLayout() {
   const draftRightSidebarWidthRef = useRef(draftRightSidebarWidth);
   const tabChromeLeft = isSidebarCollapsed ? 132 : draftSidebarWidth + 12;
   const tabChromeRight = isRightSidebarOpen ? draftRightSidebarWidth + 12 : 52;
+  const chromeTransition = isSidebarDragging
+    ? "none"
+    : "left var(--motion-chrome-duration) var(--motion-playful-ease), right var(--motion-chrome-duration) var(--motion-playful-ease)";
+  const sidebarTransition = isSidebarDragging
+    ? "none"
+    : "width var(--motion-chrome-duration) var(--motion-playful-ease)";
 
   const setClampedSidebarWidth = useCallback(
     (nextWidth: number) => {
@@ -190,7 +196,7 @@ export function AppLayout() {
   );
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-transparent text-text-primary">
+    <div className="wraith-chrome-frame relative h-screen w-screen overflow-hidden bg-transparent text-text-primary">
       <div
         data-tauri-drag-region
         className="absolute inset-x-0 top-0"
@@ -211,7 +217,7 @@ export function AppLayout() {
           style={{
             left: tabChromeLeft,
             right: tabChromeRight,
-            transition: isSidebarDragging ? "none" : "left 140ms ease-out",
+            transition: chromeTransition,
           }}
         >
           <div className="pointer-events-auto">
@@ -244,10 +250,20 @@ export function AppLayout() {
             className="shrink-0 overflow-hidden"
             style={{
               width: isSidebarCollapsed ? 0 : draftSidebarWidth,
-              transition: isSidebarDragging ? "none" : "width 140ms ease-out",
+              transition: sidebarTransition,
             }}
           >
-            <div style={{ width: draftSidebarWidth }} className="h-full">
+            <div
+              style={{
+                width: draftSidebarWidth,
+                opacity: isSidebarCollapsed ? 0 : 1,
+                transform: isSidebarCollapsed ? "translateX(-8px)" : "translateX(0)",
+                transition: isSidebarDragging
+                  ? "none"
+                  : "opacity var(--motion-quick-duration) var(--motion-soft-ease), transform var(--motion-chrome-duration) var(--motion-playful-ease)",
+              }}
+              className="h-full"
+            >
               <Sidebar />
             </div>
           </div>
@@ -279,11 +295,18 @@ export function AppLayout() {
             style={{
               width: isRightSidebarOpen ? draftRightSidebarWidth : 0,
               pointerEvents: isRightSidebarOpen ? "auto" : "none",
-              transition: isSidebarDragging ? "none" : "width 140ms ease-out",
+              transition: sidebarTransition,
             }}
           >
             <div
-              style={{ width: draftRightSidebarWidth }}
+              style={{
+                width: draftRightSidebarWidth,
+                opacity: isRightSidebarOpen ? 1 : 0,
+                transform: isRightSidebarOpen ? "translateX(0)" : "translateX(8px)",
+                transition: isSidebarDragging
+                  ? "none"
+                  : "opacity var(--motion-quick-duration) var(--motion-soft-ease), transform var(--motion-chrome-duration) var(--motion-playful-ease)",
+              }}
               className={`h-full ${isRightSidebarOpen ? "" : "invisible"}`}
             >
               <RightSidebar />

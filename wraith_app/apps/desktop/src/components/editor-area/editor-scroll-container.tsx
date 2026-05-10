@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 
 const FADE_DISTANCE = 120;
-const SCROLLBAR_GUTTER = "18px";
+const SCROLLBAR_GUTTER = "10px";
 const FADE_MASK_VERTICAL = `linear-gradient(to bottom, transparent 5%, black 15%, black 85%, transparent)`;
 const FADE_MASK_GUTTER = `linear-gradient(to right, black ${SCROLLBAR_GUTTER}, transparent ${SCROLLBAR_GUTTER}, transparent calc(100% - ${SCROLLBAR_GUTTER}), black calc(100% - ${SCROLLBAR_GUTTER}))`;
 const FADE_MASK = `${FADE_MASK_VERTICAL}, ${FADE_MASK_GUTTER}`;
@@ -9,6 +9,7 @@ const FADE_MASK = `${FADE_MASK_VERTICAL}, ${FADE_MASK_GUTTER}`;
 // Vertical inset to keep content (e.g. the active search match) clear of both
 // the FADE_MASK_VERTICAL gradient and the ProgressiveBlur overlay.
 export const EDITOR_SAFE_SCROLL_MARGIN = FADE_DISTANCE + 20;
+export const EDITOR_TYPING_SCROLL_MARGIN = 92;
 export const EDITOR_SCROLLBAR_GUTTER = SCROLLBAR_GUTTER;
 
 function ProgressiveBlur({ position }: { position: "top" | "bottom" }) {
