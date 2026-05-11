@@ -449,6 +449,38 @@
       "category": "Shortcuts",
       "type": "string",
       "default": "Ctrl+Shift+Tab"
+    },
+    {
+      "key": "shortcuts.git-check",
+      "label": "Git Check",
+      "description": "Fetch remote state and refresh Git status",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shortcuts.git-pull",
+      "label": "Git Pull",
+      "description": "Pull from the configured Git remote",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shortcuts.git-push",
+      "label": "Git Push",
+      "description": "Commit local changes, then push",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shortcuts.git-sync",
+      "label": "Git Sync",
+      "description": "Pull, commit local changes, then push",
+      "category": "Shortcuts",
+      "type": "string",
+      "default": ""
     }
   ]
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-11
+
+- Start the next V4 implementation wave: app-level shortcut handling now runs before CodeMirror so a remapped `Cmd+E` can toggle the left sidebar without inserting inline-code backticks; the integrated terminal hides xterm's remaining visible scrollbar; expanded folder state is persisted per workspace in the existing session file and restored on reopen while pruning stale deleted folders; Git status now uses `--untracked-files=all` so untracked `.claude` worktree contents are less likely to collapse into invisible directories; regular Markdown image syntax renders a separate editable-source-preserving preview below `![alt](path)` using the existing vault asset resolver; and Git Check/Pull/Push/Sync shortcuts are available in Settings with empty defaults.
+
 ## 2026-05-10
 
 - Follow up the V4 Git workflow feedback: split Git actions into Check (`git fetch --prune` plus refreshed ahead/behind state), Pull, Push (commit all local changes with the message/default and then push), and Sync (pull, then commit local changes, then push). The pending-change list remains the source of truth for local uncommitted work.

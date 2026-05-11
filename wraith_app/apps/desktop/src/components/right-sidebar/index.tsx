@@ -44,6 +44,7 @@ import { parseYamlEntries } from "@/lib/yaml-entries";
 import { jumpToEditorLine } from "@/lib/editor-navigation";
 import { resolveWikiLink } from "@/lib/wiki-links";
 import { GIT_REFRESH_EVENT, requestGitRefresh } from "@/lib/git-refresh";
+import { DEFAULT_GIT_COMMIT_MESSAGE } from "@/lib/git-actions";
 import * as tauri from "@/lib/tauri";
 
 const VIEWS: Array<{ id: RightSidebarView; label: string; icon: typeof AiChat01Icon }> = [
@@ -64,8 +65,6 @@ type AgentMessage = {
 const AGENT_PROFILE_STORAGE_KEY = "wraith.agent.profile";
 const DEFAULT_TERMINAL_FONT_FAMILY =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-const DEFAULT_GIT_COMMIT_MESSAGE = "Update vault";
-
 function normalizeTerminalFontFamily(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : DEFAULT_TERMINAL_FONT_FAMILY;
 }
@@ -1020,7 +1019,7 @@ function GitPanel({ isActive }: { isActive: boolean }) {
       const nextStatus = await refreshStatus();
       setOutput({
         status: fetch.status,
-        stdout: [`$ git fetch --prune`, commandText(fetch), nextStatus ? `$ git status --short --branch\n${nextStatus.stdout.trim()}` : ""]
+        stdout: [`$ git fetch --prune`, commandText(fetch), nextStatus ? `$ git status --short --branch --untracked-files=all\n${nextStatus.stdout.trim()}` : ""]
           .filter(Boolean)
           .join("\n\n"),
         stderr: fetch.stderr,

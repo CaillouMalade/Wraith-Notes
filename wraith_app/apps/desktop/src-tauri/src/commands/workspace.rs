@@ -401,6 +401,8 @@ pub struct SessionData {
     pub tabs: Vec<SessionTab>,
     #[serde(default)]
     pub active_index: Option<usize>,
+    #[serde(default)]
+    pub expanded_dirs: Vec<String>,
 }
 
 fn sessions_path(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
@@ -442,6 +444,7 @@ pub fn save_session(
     workspace_root: String,
     tabs: Vec<SessionTab>,
     active_index: Option<usize>,
+    expanded_dirs: Vec<String>,
     app: tauri::AppHandle,
 ) -> Result<(), AppError> {
     let key = workspace_root.trim_end_matches('/').to_string();
@@ -451,10 +454,17 @@ pub fn save_session(
     let _guard = state.sessions_file_lock.lock();
     let mut sessions = load_all_sessions(&app);
 
-    if tabs.is_empty() && active_index.is_none() {
+    if tabs.is_empty() && active_index.is_none() && expanded_dirs.is_empty() {
         sessions.remove(&key);
     } else {
-        sessions.insert(key, SessionData { tabs, active_index });
+        sessions.insert(
+            key,
+            SessionData {
+                tabs,
+                active_index,
+                expanded_dirs,
+            },
+        );
     }
 
     save_all_sessions(&app, &sessions)

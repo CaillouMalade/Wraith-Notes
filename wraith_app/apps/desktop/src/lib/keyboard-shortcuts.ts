@@ -13,7 +13,11 @@ export type ShortcutSettingKey =
   | "shortcuts.navigate-back"
   | "shortcuts.navigate-forward"
   | "shortcuts.next-tab"
-  | "shortcuts.previous-tab";
+  | "shortcuts.previous-tab"
+  | "shortcuts.git-check"
+  | "shortcuts.git-pull"
+  | "shortcuts.git-push"
+  | "shortcuts.git-sync";
 
 export interface ShortcutAction {
   key: ShortcutSettingKey;
@@ -86,6 +90,26 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
     key: "shortcuts.previous-tab",
     label: "Previous Tab",
     description: "Activate the previous tab.",
+  },
+  {
+    key: "shortcuts.git-check",
+    label: "Git Check",
+    description: "Fetch remote state and refresh Git status.",
+  },
+  {
+    key: "shortcuts.git-pull",
+    label: "Git Pull",
+    description: "Pull from the configured Git remote.",
+  },
+  {
+    key: "shortcuts.git-push",
+    label: "Git Push",
+    description: "Commit local changes, then push.",
+  },
+  {
+    key: "shortcuts.git-sync",
+    label: "Git Sync",
+    description: "Pull, commit local changes, then push.",
   },
 ];
 

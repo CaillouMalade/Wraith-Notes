@@ -46,6 +46,7 @@ import { htmlBlockDecorations, htmlBlockParserExtension } from "./html-block-dec
 import { mermaidDecorations } from "./mermaid-decorations";
 import { imageSrcResolver } from "./image-src-resolver";
 import { obsidianEmbedDecorations } from "./obsidian-embed-decorations";
+import { markdownImageDecorations } from "./markdown-image-decorations";
 import { calloutDecorations } from "./callout-decorations";
 import { mathDecorations } from "./math-decorations";
 import { wikiLinkExtension } from "./wiki-link-extension";
@@ -660,6 +661,7 @@ function createEditorExtensions(
     htmlBlockDecorations(),
     mermaidDecorations(),
     obsidianEmbedDecorations(getFilePath, getWorkspaceRoot),
+    markdownImageDecorations(getFilePath, getWorkspaceRoot),
     calloutDecorations(),
     mathDecorations(),
     imageSrcResolver(getFilePath, getWorkspaceRoot),

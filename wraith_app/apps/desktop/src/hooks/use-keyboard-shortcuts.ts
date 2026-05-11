@@ -4,6 +4,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toggleSidebar } from "@/hooks/use-sidebar";
+import { runGitShortcutAction } from "@/lib/git-actions";
 import { eventMatchesShortcut, getShortcutValue, type ShortcutSettingKey } from "@/lib/keyboard-shortcuts";
 
 function isEditableTargetFocused(): boolean {
@@ -113,6 +114,30 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (matches("shortcuts.git-check")) {
+        e.preventDefault();
+        if (root) void runGitShortcutAction("check").catch(console.error);
+        return;
+      }
+
+      if (matches("shortcuts.git-pull")) {
+        e.preventDefault();
+        if (root) void runGitShortcutAction("pull").catch(console.error);
+        return;
+      }
+
+      if (matches("shortcuts.git-push")) {
+        e.preventDefault();
+        if (root) void runGitShortcutAction("push").catch(console.error);
+        return;
+      }
+
+      if (matches("shortcuts.git-sync")) {
+        e.preventDefault();
+        if (root) void runGitShortcutAction("sync").catch(console.error);
+        return;
+      }
+
       // Ctrl+Tab / Ctrl+Shift+Tab — cycle tabs
       if (matches("shortcuts.next-tab") || matches("shortcuts.previous-tab")) {
         e.preventDefault();
@@ -135,7 +160,7 @@ export function useKeyboardShortcuts() {
         return;
       }
     }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 }

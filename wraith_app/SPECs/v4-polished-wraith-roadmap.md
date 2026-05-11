@@ -99,6 +99,12 @@ Desired behavior:
 - Existing Markdown formatting shortcuts should continue to work when they are
   not shadowed by a configured app-level shortcut.
 
+Implementation:
+
+- App-level shortcut handling now listens in the window capture phase, so
+  configured app shortcuts can prevent the editor keymap from applying a
+  conflicting formatting command.
+
 ### Git Panel And `.claude` Worktrees
 
 The Git panel appears to struggle with `.claude` worktrees or files that do not
@@ -114,11 +120,28 @@ Desired behavior:
 - If a path is intentionally excluded by Git mechanics rather than Wraith, make
   the Git panel explain that instead of silently dropping it.
 
+Implementation:
+
+- `git_status` now runs `git status --short --branch --untracked-files=all` so
+  untracked directories, including `.claude` worktree folders, expand into
+  individual paths instead of collapsing to a single directory summary.
+- If `.claude` still disappears in daily use, the next pass should add an
+  explicit ignored/nested-repo diagnostic rather than relying only on porcelain
+  status output.
+
 ### Expanded Folder Memory Regression
 
 Expanded folder memory remains a bug, not only a nice-to-have. The full
 behavior is tracked in Workstream 3, but implementation should treat this as a
 near-term fix because repeated app restarts reset the left-sidebar hierarchy.
+
+Implementation:
+
+- Expanded directory paths are persisted in the existing per-workspace session
+  file alongside restored tabs.
+- Reopening/restoring a workspace reloads those expanded directories and their
+  cached entries, skips stale deleted paths, and rewrites/removes paths during
+  folder rename/delete flows.
 
 ### Terminal Scrollbar Follow-Up
 
@@ -132,6 +155,11 @@ Desired behavior:
 - Otherwise make the terminal scrollbar track/thumb fully transparent or as
   visually quiet as the surrounding panel chrome allows.
 - Keep terminal text readable and do not regress PTY resizing/input behavior.
+
+Implementation:
+
+- The xterm viewport no longer reserves a visible scrollbar gutter and hides
+  both native and xterm-styled scrollbar thumbs while preserving scrollback.
 
 ## Workstream 1: Polish Baseline
 
@@ -343,8 +371,9 @@ Implementation:
 
 Open follow-up:
 
-- Hide or fully de-emphasize the xterm scrollbar after Arthur's 2026-05-11
-  feedback that the remaining white/blocky scrollbar still feels wrong.
+- Completed 2026-05-11: hide the xterm viewport scrollbar and styled scrollbar
+  thumb after Arthur's feedback that the remaining white/blocky scrollbar still
+  felt wrong.
 
 ### Git Panel Visual Polish
 
@@ -388,8 +417,9 @@ Implementation:
 
 Open follow-up:
 
-- Investigate `.claude` worktree/status behavior so the panel either includes
-  the expected files or clearly explains why Git itself is not reporting them.
+- First fix completed 2026-05-11: expand untracked directory contents in
+  porcelain status. If `.claude` worktrees still disappear, add a targeted
+  ignored/nested-repo diagnostic.
 
 ### Right Sidebar Shape Pass
 
@@ -436,6 +466,15 @@ Acceptance:
 - Drag/drop's HTML-first insert path still works.
 - Existing Markdown image files render usefully.
 - Missing image states are visible but quiet.
+
+Implementation:
+
+- Regular Markdown image syntax now gets a block widget preview after the
+  editable source text.
+- Previews resolve remote, absolute, note-relative, and vault-relative targets
+  through the existing local asset resolver where possible.
+- Local preview clicks open the image asset tab; remote preview clicks open the
+  remote image URL.
 
 ## Workstream 3: Sidebar State And Organization
 
@@ -495,6 +534,12 @@ Desired behavior:
 - Default values are empty/unassigned.
 - Hook shortcuts into the same actions as the Git panel.
 - Avoid stealing common editor/browser shortcuts.
+
+Implementation:
+
+- Added unassigned Settings shortcuts for Git Check, Pull, Push, and Sync.
+- Shortcut Push and Sync follow the clarified Git panel behavior: commit local
+  changes with the default message when needed, then push.
 
 ## Workstream 5: Agent Panel
 

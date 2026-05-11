@@ -139,6 +139,7 @@ export function removeRecentWorkspace(path: string): Promise<void> {
 export interface SessionData {
   tabs?: SessionTabData[];
   active_index?: number | null;
+  expanded_dirs?: string[];
 }
 
 export interface SerializedLocationData {
@@ -156,8 +157,9 @@ export function saveSession(
   workspaceRoot: string,
   tabs: SessionTabData[],
   activeIndex: number | null,
+  expandedDirs: string[] = [],
 ): Promise<void> {
-  return invoke("save_session", { workspaceRoot, tabs, activeIndex });
+  return invoke("save_session", { workspaceRoot, tabs, activeIndex, expandedDirs });
 }
 
 export function loadSession(workspaceRoot: string): Promise<SessionData | null> {

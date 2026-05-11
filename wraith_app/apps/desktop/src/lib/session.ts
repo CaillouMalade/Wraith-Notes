@@ -5,18 +5,20 @@ import type { SessionTabData } from "@/lib/tauri";
 interface Session {
   tabs: SessionTabData[];
   activeIndex: number | null;
+  expandedDirs: string[];
 }
 
 export async function saveSession(
   workspaceRoot: string,
   tabs: SessionTabData[],
   activeIndex: number | null,
+  expandedDirs: string[] = [],
 ): Promise<void> {
   const settings = useSettingsStore.getState().settings;
   if (!settings["workspace.restore-open-files"]) return;
 
   try {
-    await tauri.saveSession(workspaceRoot, tabs, activeIndex);
+    await tauri.saveSession(workspaceRoot, tabs, activeIndex, expandedDirs);
   } catch {
     // Silently fail — session is best-effort
   }
@@ -32,6 +34,7 @@ export async function loadSession(workspaceRoot: string): Promise<Session | null
     return {
       tabs: data.tabs,
       activeIndex: data.active_index ?? null,
+      expandedDirs: data.expanded_dirs ?? [],
     };
   } catch {
     return null;

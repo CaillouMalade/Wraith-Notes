@@ -6,14 +6,9 @@
 
 ## Up Next
 
-- Fix configured shortcut precedence: Arthur's `Cmd+E` left-sidebar shortcut
-  must not also trigger the editor inline-code/backtick command.
-- Hide or fully de-emphasize the integrated terminal scrollbar.
-- Investigate Git panel handling of `.claude` worktrees/paths and explain or
-  include them correctly.
-- Persist expanded folder state across close/reopen:
+- Saved theme presets for light/dark modes:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
-- Regular Markdown image embeds:
+- Properties top-panel collapse and optional right-sidebar property icons:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ## Backlog
@@ -33,10 +28,6 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 - Section indicators: [`SPECs/section-indicators-spec.md`](SPECs/section-indicators-spec.md)
 - Inline media preview: [`SPECs/inline-media-preview-spec.md`](SPECs/inline-media-preview-spec.md)
 - Obsidian image embed: [`SPECs/obsidian-image-embed-spec.md`](SPECs/obsidian-image-embed-spec.md)
-- Saved theme presets for light/dark modes:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
-- Properties top-panel collapse and optional right-sidebar property icons:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ### Sidebar and organization
 
@@ -94,3 +85,8 @@ See `CHANGELOG.md` and `git log` for shipped work. Notable items:
 - Keyboard and accessibility pass
 - Workspace switch hang fix
 - Writer open CLI — `writer-cli` binary + shared `open_target` module, macOS PATH-install menu item, bundle-resource staging
+- V4 wave: configured app shortcuts now override conflicting editor keymaps;
+  terminal scrollbar is hidden; expanded folder state persists; Git status
+  expands untracked directories for `.claude`-style worktrees; regular
+  Markdown image embeds render after the source text; Git Check/Pull/Push/Sync
+  shortcuts exist with empty defaults.

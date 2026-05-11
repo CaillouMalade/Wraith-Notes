@@ -26,6 +26,39 @@ interface WorkspaceState {
   removeRecentWorkspace: (path: string) => Promise<void>;
 }
 
+async function buildExpandedDirectoryState(
+  root: string,
+  dirs: string[],
+  initialCache: Map<string, DirEntry[]>,
+) {
+  const normalizedRoot = root.replace(/\/$/, "");
+  const rootPrefix = `${normalizedRoot}/`;
+  const candidates = [...new Set(dirs)]
+    .map((dir) => dir.trim())
+    .filter((dir) => dir.length > 0 && dir !== normalizedRoot && dir.startsWith(rootPrefix));
+
+  const cache = new Map(initialCache);
+  const expandedDirs = new Set<string>();
+  const loaded = await Promise.all(
+    candidates.map(async (dir) => {
+      try {
+        return [dir, await tauri.readDirectory(dir)] as const;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  for (const entry of loaded) {
+    if (!entry) continue;
+    const [dir, entries] = entry;
+    cache.set(dir, entries);
+    expandedDirs.add(dir);
+  }
+
+  return { directoryCache: cache, expandedDirs };
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   root: null,
   isIndexing: false,
@@ -63,16 +96,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const info = await tauri.openWorkspace(path);
     const entries = await tauri.readDirectory(path);
     const recents = await tauri.getRecentWorkspaces();
+    const session = await loadSession(path);
+    const restoredTree = await buildExpandedDirectoryState(
+      info.root,
+      session?.expandedDirs ?? [],
+      new Map([[info.root, entries]]),
+    );
+
     set({
       root: info.root,
       isIndexing: true,
-      directoryCache: new Map([[path, entries]]),
-      expandedDirs: new Set(),
+      directoryCache: restoredTree.directoryCache,
+      expandedDirs: restoredTree.expandedDirs,
       recentWorkspaces: recents,
     });
 
     // Restore session for the new workspace
-    const session = await loadSession(path);
     if (session && session.tabs.length > 0) {
       await useEditorStore.getState().restoreSession(session.tabs, session.activeIndex);
       return;
@@ -85,7 +124,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const root = get().root;
     if (!root) return;
     const snapshot = getEditorSessionSnapshot(useEditorStore.getState());
-    void saveSession(root, snapshot.tabs, snapshot.activeIndex);
+    void saveSession(root, snapshot.tabs, snapshot.activeIndex, [...get().expandedDirs]);
     useEditorStore.setState({
       openFiles: new Map(),
       tabs: [],
@@ -112,11 +151,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       splitPaneActiveTabId: { left: null, right: null },
     });
 
+    const restoredTree = await buildExpandedDirectoryState(
+      bundle.workspace.root,
+      bundle.session?.expanded_dirs ?? [],
+      new Map([[bundle.workspace.root, bundle.entries]]),
+    );
+
     set({
       root: bundle.workspace.root,
       isIndexing: true,
-      directoryCache: new Map([[bundle.workspace.root, bundle.entries]]),
-      expandedDirs: new Set(),
+      directoryCache: restoredTree.directoryCache,
+      expandedDirs: restoredTree.expandedDirs,
       recentWorkspaces: bundle.recent_workspaces,
     });
 
@@ -179,7 +224,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set((state) => {
       const cache = new Map(state.directoryCache);
       cache.delete(path);
-      return { directoryCache: cache };
+      const expandedDirs = new Set<string>();
+      const dirPrefix = `${path}/`;
+      let changed = false;
+      for (const dir of state.expandedDirs) {
+        if (dir !== path && !dir.startsWith(dirPrefix)) {
+          expandedDirs.add(dir);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? { directoryCache: cache, expandedDirs } : { directoryCache: cache };
     });
   },
 
@@ -233,22 +288,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 if (typeof window !== "undefined") {
   let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
+  function saveCurrentSession() {
+    const workspace = useWorkspaceStore.getState();
+    const root = workspace.root;
+    if (!root) return;
+    const snapshot = getEditorSessionSnapshot(useEditorStore.getState());
+    void saveSession(root, snapshot.tabs, snapshot.activeIndex, [...workspace.expandedDirs].sort());
+  }
+
+  function scheduleSessionSave() {
+    if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = setTimeout(saveCurrentSession, 500);
+  }
+
   useEditorStore.subscribe((state, prev) => {
     if (state.tabs === prev.tabs && state.activeTabId === prev.activeTabId) return;
-    if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
-    sessionSaveTimer = setTimeout(() => {
-      const root = useWorkspaceStore.getState().root;
-      if (!root) return;
-      const snapshot = getEditorSessionSnapshot(useEditorStore.getState());
-      void saveSession(root, snapshot.tabs, snapshot.activeIndex);
-    }, 500);
+    scheduleSessionSave();
+  });
+
+  useWorkspaceStore.subscribe((state, prev) => {
+    if (state.expandedDirs === prev.expandedDirs) return;
+    if (!state.root || state.root !== prev.root) return;
+    scheduleSessionSave();
   });
 
   window.addEventListener("beforeunload", () => {
     if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
-    const root = useWorkspaceStore.getState().root;
-    if (!root) return;
-    const snapshot = getEditorSessionSnapshot(useEditorStore.getState());
-    void saveSession(root, snapshot.tabs, snapshot.activeIndex);
+    saveCurrentSession();
   });
 }

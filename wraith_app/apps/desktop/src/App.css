@@ -330,7 +330,6 @@ input {
 
 .xterm {
   height: 100%;
-  padding-right: 4px;
 }
 
 .xterm .xterm-viewport,
@@ -341,25 +340,21 @@ input {
 }
 
 .xterm .xterm-viewport {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  scrollbar-width: none !important;
+  scrollbar-color: transparent transparent !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 .xterm .xterm-scrollable-element > .scrollbar {
-  --vscode-scrollbarSlider-background: color-mix(
-    in srgb,
-    var(--fg-base) calc(var(--contrast) * 42%),
-    transparent
-  );
-  --vscode-scrollbarSlider-hoverBackground: color-mix(
-    in srgb,
-    var(--fg-base) calc(var(--contrast) * 58%),
-    transparent
-  );
-  --vscode-scrollbarSlider-activeBackground: color-mix(
-    in srgb,
-    var(--fg-base) calc(var(--contrast) * 72%),
-    transparent
-  );
+  --vscode-scrollbarSlider-background: transparent;
+  --vscode-scrollbarSlider-hoverBackground: transparent;
+  --vscode-scrollbarSlider-activeBackground: transparent;
 }
 
 .wraith-terminal-surface {
