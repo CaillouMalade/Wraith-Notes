@@ -65,12 +65,30 @@ type AgentMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   agentLabel?: string;
+  actions?: AgentAction[];
+  rawOutput?: string;
 };
+
+type AgentAction = {
+  id: string;
+  label: string;
+  status: "running" | "done" | "error";
+  input?: string;
+  output?: string;
+};
+
+type AgentPermissionMode = "safe" | "power_user";
 
 const AGENT_PROFILE_STORAGE_KEY = "wraith.agent.profile";
 const DEFAULT_TERMINAL_FONT_FAMILY =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 const DEFAULT_BROWSER_URL = "https://www.google.com";
+const LEGACY_CODEX_COMMAND = "codex exec --skip-git-repo-check {prompt}";
+const WRAITH_CODEX_COMMAND =
+  "codex --sandbox {codexSandbox} --ask-for-approval {codexApproval} exec --skip-git-repo-check --json {prompt}";
+const LEGACY_CLAUDE_COMMAND = "claude -p {prompt}";
+const WRAITH_CLAUDE_COMMAND =
+  "claude -p {prompt} --permission-mode acceptEdits --tools {claudeTools} {claudeAllowedToolsArgs}";
 
 function normalizeTerminalFontFamily(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : DEFAULT_TERMINAL_FONT_FAMILY;
@@ -78,6 +96,40 @@ function normalizeTerminalFontFamily(value: unknown) {
 
 function normalizeBrowserUrl(value: unknown, fallback = DEFAULT_BROWSER_URL) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function normalizeAgentPermissionMode(value: unknown): AgentPermissionMode {
+  return value === "power_user" ? "power_user" : "safe";
+}
+
+function commandTemplateForProfile(profile: AgentProfile) {
+  if (profile.id === "codex" && profile.command === LEGACY_CODEX_COMMAND) {
+    return WRAITH_CODEX_COMMAND;
+  }
+  if (profile.id === "claude-code" && profile.command === LEGACY_CLAUDE_COMMAND) {
+    return WRAITH_CLAUDE_COMMAND;
+  }
+  return profile.command;
+}
+
+function expandAgentArg(arg: string, permissionMode: AgentPermissionMode): string[] {
+  if (arg === "{claudeAllowedToolsArgs}") {
+    return permissionMode === "power_user" ? ["--allowedTools", "Bash"] : [];
+  }
+  const replacements: Record<string, string> = {
+    "{permissionMode}": permissionMode,
+    "{codexSandbox}": permissionMode === "power_user" ? "workspace-write" : "read-only",
+    "{codexApproval}": permissionMode === "power_user" ? "never" : "untrusted",
+    "{claudeTools}":
+      permissionMode === "power_user"
+        ? "Read,Edit,MultiEdit,Write,Glob,Grep,LS,Bash"
+        : "Read,Edit,MultiEdit,Write,Glob,Grep,LS",
+  };
+  let expanded = arg;
+  for (const [token, value] of Object.entries(replacements)) {
+    expanded = expanded.split(token).join(value);
+  }
+  return expanded ? [expanded] : [];
 }
 
 function terminalTheme() {
@@ -170,14 +222,16 @@ function initialAgentProfileId() {
   return window.localStorage.getItem(AGENT_PROFILE_STORAGE_KEY);
 }
 
-function commandFromProfile(profile: AgentProfile | null) {
+function commandFromProfile(profile: AgentProfile | null, permissionMode: AgentPermissionMode) {
   if (!profile) return { label: "Agent", program: "", args: [] as string[], command: "" };
-  const parts = parseCommandLine(profile.command);
+  const template = commandTemplateForProfile(profile);
+  const parts = parseCommandLine(template);
+  const args = parts.slice(1).flatMap((part) => expandAgentArg(part, permissionMode));
   return {
     label: profile.name,
     program: parts[0] ?? "",
-    args: parts.slice(1),
-    command: profile.command,
+    args,
+    command: [parts[0] ?? "", ...args].filter(Boolean).join(" "),
   };
 }
 
@@ -404,8 +458,154 @@ function workspacePath(relativePath: string) {
   return `${workspaceRoot.replace(/\/$/, "")}/${relativePath.replace(/^\/+/, "")}`;
 }
 
+type AgentStreamParser = {
+  kind: "codex";
+  buffer: string;
+};
+
+function codexActionLabel(toolName: string) {
+  if (toolName === "Bash") return "Ran shell command";
+  if (toolName === "Write") return "Wrote file";
+  if (toolName === "Edit" || toolName === "MultiEdit") return "Edited file";
+  return toolName;
+}
+
+function addAgentRawOutput(message: AgentMessage, raw: string): AgentMessage {
+  return {
+    ...message,
+    rawOutput: `${message.rawOutput ?? ""}${raw}`,
+  };
+}
+
+function updateAgentAction(
+  message: AgentMessage,
+  action: AgentAction,
+): AgentMessage {
+  const actions = message.actions ?? [];
+  const existing = actions.find((candidate) => candidate.id === action.id);
+  if (!existing) return { ...message, actions: [...actions, action] };
+  return {
+    ...message,
+    actions: actions.map((candidate) =>
+      candidate.id === action.id ? { ...candidate, ...action } : candidate,
+    ),
+  };
+}
+
+function appendAgentText(message: AgentMessage, text: string): AgentMessage {
+  if (!text) return message;
+  return { ...message, content: `${message.content}${text}` };
+}
+
+function stringifyJsonField(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+function applyCodexJsonEvent(message: AgentMessage, json: Record<string, unknown>): AgentMessage {
+  const type = typeof json.type === "string" ? json.type : "";
+  if (type !== "item.started" && type !== "item.completed") return message;
+  const completed = type === "item.completed";
+  const item = json.item && typeof json.item === "object" ? (json.item as Record<string, unknown>) : null;
+  if (!item) return message;
+  const itemType = typeof item.type === "string" ? item.type : "";
+  const itemId = typeof item.id === "string" ? item.id : `${itemType}-${Date.now()}`;
+
+  if (itemType === "agent_message" && completed) {
+    return appendAgentText(message, typeof item.text === "string" ? item.text : "");
+  }
+  if (itemType === "command_execution") {
+    return updateAgentAction(message, {
+      id: itemId,
+      label: codexActionLabel("Bash"),
+      status: completed ? "done" : "running",
+      input: typeof item.command === "string" ? item.command : undefined,
+      output: typeof item.aggregated_output === "string" ? item.aggregated_output : undefined,
+    });
+  }
+  if (itemType === "mcp_tool_call") {
+    const toolName = typeof item.tool === "string" ? item.tool : "MCP tool";
+    return updateAgentAction(message, {
+      id: itemId,
+      label: codexActionLabel(toolName),
+      status: completed ? "done" : "running",
+      input: stringifyJsonField(item.arguments),
+      output: stringifyJsonField(item.result) ?? stringifyJsonField(item.error),
+    });
+  }
+  return message;
+}
+
+function applyCodexChunk(message: AgentMessage, parser: AgentStreamParser, chunk: string) {
+  parser.buffer += chunk;
+  const lines = parser.buffer.split(/\r?\n/);
+  parser.buffer = lines.pop() ?? "";
+  let next = message;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      next = applyCodexJsonEvent(next, JSON.parse(trimmed) as Record<string, unknown>);
+    } catch {
+      next = addAgentRawOutput(next, `${line}\n`);
+    }
+  }
+  return next;
+}
+
+function flushAgentParser(message: AgentMessage, parser: AgentStreamParser | null) {
+  if (!parser?.buffer.trim()) return message;
+  const trailing = parser.buffer;
+  parser.buffer = "";
+  try {
+    return applyCodexJsonEvent(message, JSON.parse(trailing) as Record<string, unknown>);
+  } catch {
+    return addAgentRawOutput(message, trailing);
+  }
+}
+
+function AgentMessageBody({ message, isWaiting }: { message: AgentMessage; isWaiting: boolean }) {
+  const visibleContent = message.content || (isWaiting ? "Waiting..." : "");
+  return (
+    <div className="space-y-2">
+      {visibleContent && <div className="whitespace-pre-wrap">{visibleContent}</div>}
+      {message.actions && message.actions.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {message.actions.map((action) => (
+            <details
+              key={action.id}
+              className="rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-2 py-1.5"
+            >
+              <summary className="cursor-default text-[12px] text-[var(--text-muted)]">
+                {action.status === "running" ? "Running" : "Done"} · {action.label}
+              </summary>
+              {(action.input || action.output) && (
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text-secondary)]">
+                  {[action.input, action.output].filter(Boolean).join("\n\n")}
+                </pre>
+              )}
+            </details>
+          ))}
+        </div>
+      )}
+      {message.rawOutput && (
+        <details className="rounded-md border border-[var(--line-subtler)] px-2 py-1.5">
+          <summary className="cursor-default text-[12px] text-[var(--text-muted)]">
+            Raw output
+          </summary>
+          <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text-secondary)]">
+            {message.rawOutput}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function AgentPanel() {
   const rawProfiles = useSetting(AGENT_PROFILES_SETTING_KEY);
+  const permissionMode = normalizeAgentPermissionMode(useSetting("agents.permission-mode"));
+  const setSetting = useSetSetting();
   const profiles = useMemo(() => parseAgentProfiles(rawProfiles), [rawProfiles]);
   const enabledProfiles = useMemo(
     () => profiles.filter((profile) => profile.enabled && profile.command.trim()),
@@ -420,6 +620,7 @@ function AgentPanel() {
   const runningAgentIdRef = useRef<string | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null);
   const runningCommandLabelRef = useRef("Agent");
+  const streamParserRef = useRef<AgentStreamParser | null>(null);
 
   const selectedProfile = useMemo(
     () =>
@@ -429,7 +630,10 @@ function AgentPanel() {
     [enabledProfiles, selectedProfileId],
   );
 
-  const selectedCommand = useMemo(() => commandFromProfile(selectedProfile), [selectedProfile]);
+  const selectedCommand = useMemo(
+    () => commandFromProfile(selectedProfile, permissionMode),
+    [permissionMode, selectedProfile],
+  );
 
   useEffect(() => {
     if (!selectedProfile || selectedProfile.id === selectedProfileId) return;
@@ -448,6 +652,7 @@ function AgentPanel() {
     const id = runningAgentIdRef.current;
     runningAgentIdRef.current = null;
     streamingMessageIdRef.current = null;
+    streamParserRef.current = null;
     setIsRunning(false);
     if (id) {
       await tauri.agentStop(id).catch(() => {});
@@ -464,6 +669,14 @@ function AgentPanel() {
       if (event.payload.stream === "exit") {
         const status = event.payload.status ?? 0;
         const messageId = streamingMessageIdRef.current;
+        const parser = streamParserRef.current;
+        if (messageId && parser) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === messageId ? flushAgentParser(message, parser) : message,
+            ),
+          );
+        }
         if (status !== 0) {
           const text = `${runningCommandLabelRef.current} exited with status ${status}`;
           if (messageId) {
@@ -485,12 +698,24 @@ function AgentPanel() {
         }
         runningAgentIdRef.current = null;
         streamingMessageIdRef.current = null;
+        streamParserRef.current = null;
         setIsRunning(false);
         return;
       }
 
       const messageId = streamingMessageIdRef.current;
       if (!messageId || !event.payload.data) return;
+      const parser = streamParserRef.current;
+      if (parser && event.payload.stream === "stdout") {
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === messageId
+              ? applyCodexChunk(message, parser, event.payload.data)
+              : message,
+          ),
+        );
+        return;
+      }
       setMessages((current) =>
         current.map((message) =>
           message.id === messageId
@@ -500,7 +725,14 @@ function AgentPanel() {
                   event.payload.stream === "stderr" && !message.content
                     ? "system"
                     : message.role,
-                content: `${message.content}${event.payload.data}`,
+                content:
+                  event.payload.stream === "stderr"
+                    ? message.content
+                    : `${message.content}${event.payload.data}`,
+                rawOutput:
+                  event.payload.stream === "stderr"
+                    ? `${message.rawOutput ?? ""}${event.payload.data}`
+                    : message.rawOutput,
               }
             : message,
         ),
@@ -539,6 +771,7 @@ function AgentPanel() {
     runningCommandLabelRef.current = selectedCommand.command || selectedCommand.program;
     runningAgentIdRef.current = agentId;
     streamingMessageIdRef.current = assistantMessage.id;
+    streamParserRef.current = selectedProfile?.id === "codex" ? { kind: "codex", buffer: "" } : null;
     try {
       await tauri.agentStart(
         agentId,
@@ -550,6 +783,7 @@ function AgentPanel() {
     } catch (error) {
       runningAgentIdRef.current = null;
       streamingMessageIdRef.current = null;
+      streamParserRef.current = null;
       setMessages((current) => [
         ...current.filter((message) => message.id !== assistantMessage.id),
         {
@@ -592,10 +826,26 @@ function AgentPanel() {
           ))
         )}
       </div>
+      <div className="grid grid-cols-2 gap-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-1">
+        {(["safe", "power_user"] as AgentPermissionMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => void setSetting("agents.permission-mode", mode)}
+            className={`h-7 rounded-[5px] px-2 text-[12px] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
+              permissionMode === mode
+                ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            {mode === "power_user" ? "Power User" : "Safe"}
+          </button>
+        ))}
+      </div>
       {selectedProfile && (
         <div className="min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-3 py-2">
           <div className="truncate font-mono text-[12px] text-[var(--text-secondary)]">
-            {selectedProfile.command}
+            {selectedCommand.command}
           </div>
           <div className="mt-1 truncate text-[12px] text-[var(--text-muted)]">
             {selectedProfile.workingDirectory.trim() || "vault root"}
@@ -645,9 +895,10 @@ function AgentPanel() {
                       ? (message.agentLabel ?? selectedCommand.label)
                       : "System"}
                 </div>
-                <div className="whitespace-pre-wrap">
-                  {message.content || (isRunning ? "Waiting..." : "")}
-                </div>
+                <AgentMessageBody
+                  message={message}
+                  isWaiting={isRunning && message.id === streamingMessageIdRef.current}
+                />
               </div>
             ))}
           </div>

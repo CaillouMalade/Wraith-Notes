@@ -13,18 +13,20 @@ export const DEFAULT_AGENT_PROFILES: AgentProfile[] = [
   {
     id: "codex",
     name: "Codex",
-    command: "codex exec --skip-git-repo-check {prompt}",
+    command:
+      "codex --sandbox {codexSandbox} --ask-for-approval {codexApproval} exec --skip-git-repo-check --json {prompt}",
     enabled: true,
     workingDirectory: "",
-    notes: "Local Codex CLI.",
+    notes: "Local Codex CLI. Wraith expands permission placeholders at run time.",
   },
   {
     id: "claude-code",
     name: "Claude Code",
-    command: "claude -p {prompt}",
+    command:
+      "claude -p {prompt} --permission-mode acceptEdits --tools {claudeTools} {claudeAllowedToolsArgs}",
     enabled: true,
     workingDirectory: "",
-    notes: "Arthur can replace this with his local Claude Code command.",
+    notes: "Claude Code with Wraith's Safe / Power User tool mode.",
   },
   {
     id: "hermes",

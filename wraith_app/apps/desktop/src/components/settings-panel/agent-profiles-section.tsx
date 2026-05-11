@@ -122,7 +122,7 @@ export function AgentProfilesSection() {
                 <TextInput
                   value={profile.command}
                   onChange={(command) => updateProfile(profile.id, { command })}
-                  placeholder="codex exec --skip-git-repo-check {prompt}"
+                  placeholder="codex exec --skip-git-repo-check --json {prompt}"
                   mono
                 />
               </div>

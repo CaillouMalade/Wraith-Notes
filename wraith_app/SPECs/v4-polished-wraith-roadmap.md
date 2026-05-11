@@ -602,6 +602,19 @@ Open questions for the agent spec:
   protocol, or theme pieces. Their UX is the taste target, but direct porting
   should only happen if the investigation shows a clean reusable surface.
 
+Implementation status:
+
+- Created `v4-agent-panel.md` and implemented the first V4 Agent slice.
+- Codex and Claude Code now have mode-aware default templates. Existing legacy
+  profile commands are upgraded at runtime so older settings keep working.
+- The Agent panel exposes Safe / Power User modes and shows the expanded
+  command before a run.
+- Codex JSON stream output now becomes readable assistant text plus compact,
+  collapsible tool-action rows. Raw stream and stderr details remain available
+  behind collapsed debug sections.
+- Claude Code stream-json parsing, availability checks, and deeper approval UX
+  remain follow-up work in the dedicated agent spec.
+
 ## Workstream 6: Theme Presets And Properties Polish
 
 ### Saved Theme Presets
@@ -737,7 +750,7 @@ These are not first-pass V4 polish tasks.
 Create these only when starting the related implementation slice:
 
 - `v4-agent-panel.md` for structured local-agent execution, permission modes,
-  UI states, and Tolaria borrowing decisions.
+  UI states, and Tolaria borrowing decisions. Created for the V4 agent slice.
 - `v4-organization.md` for property-based sidebar grouping, custom colors, and
   persisted view/section settings. Created for the V4 sidebar organization
   slice.

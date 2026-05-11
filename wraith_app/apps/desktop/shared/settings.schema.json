@@ -381,10 +381,19 @@
       "category": "Agents",
       "type": "list",
       "default": [
-        "{\"id\":\"codex\",\"name\":\"Codex\",\"command\":\"codex exec --skip-git-repo-check {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Codex CLI.\"}",
-        "{\"id\":\"claude-code\",\"name\":\"Claude Code\",\"command\":\"claude -p {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Arthur can replace this with his local Claude Code command.\"}",
+        "{\"id\":\"codex\",\"name\":\"Codex\",\"command\":\"codex --sandbox {codexSandbox} --ask-for-approval {codexApproval} exec --skip-git-repo-check --json {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Codex CLI. Wraith expands permission placeholders at run time.\"}",
+        "{\"id\":\"claude-code\",\"name\":\"Claude Code\",\"command\":\"claude -p {prompt} --permission-mode acceptEdits --tools {claudeTools} {claudeAllowedToolsArgs}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Claude Code with Wraith's Safe / Power User tool mode.\"}",
         "{\"id\":\"hermes\",\"name\":\"Hermes\",\"command\":\"hermes {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Hermes CLI.\"}"
       ]
+    },
+    {
+      "key": "agents.permission-mode",
+      "label": "Permission Mode",
+      "description": "Default execution mode for first-class local agents",
+      "category": "Agents",
+      "type": "enum",
+      "options": ["safe", "power_user"],
+      "default": "safe"
     },
     {
       "key": "sidebar.folder-color",

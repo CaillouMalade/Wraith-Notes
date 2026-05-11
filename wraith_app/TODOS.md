@@ -10,8 +10,8 @@
   [`SPECs/v4-organization.md`](SPECs/v4-organization.md)
 - Localhost/browser-hosted Wraith mode:
   [`SPECs/v4-browser-surfaces.md`](SPECs/v4-browser-surfaces.md)
-- V4 Agent panel spec and implementation plan:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Claude Code stream-json rendering and agent availability checks:
+  [`SPECs/v4-agent-panel.md`](SPECs/v4-agent-panel.md)
 
 ## Backlog
 
@@ -44,9 +44,9 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 - Multi window (v1 shipped — single-process multi-window): [`SPECs/multi-window-spec.md`](SPECs/multi-window-spec.md). Future work: macOS Window menu listing open workspaces, session restore of all open windows at quit, tab tear-off across windows.
 - Custom MCP: [`SPECs/custom-mcp-spec.md`](SPECs/custom-mcp-spec.md) — **high risk**. New protocol client, trust model, and tool invocation surface.
 - Writer CLI: [`SPECs/writer-cli-spec.md`](SPECs/writer-cli-spec.md) — standalone second binary; can slot in whenever convenient.
-- V4 Agent panel: structured Codex/Claude Code events, Safe / Power User modes,
-  collapsed tool output, and approval-mode investigation:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- V4 Agent panel follow-up: Claude Code structured events, optional Wraith MCP
+  context, and approval-mode investigation if Safe / Power User still blocks
+  useful file-writing work: [`SPECs/v4-agent-panel.md`](SPECs/v4-agent-panel.md)
 - Right-sidebar browser with session memory:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 - Localhost/browser-hosted Wraith mode:
@@ -97,3 +97,6 @@ See `CHANGELOG.md` and `git log` for shipped work. Notable items:
 - V4 wave: right-sidebar Browser tab backed by a native Tauri child webview,
   Browser memory settings, dedicated browser/organization specs, and
   default/accent left-sidebar icon color settings.
+- V4 wave: Agent panel Safe / Power User modes, mode-aware Codex and Claude
+  Code command templates, cleaner Codex JSON stream rendering, and collapsed
+  raw/tool output details.
