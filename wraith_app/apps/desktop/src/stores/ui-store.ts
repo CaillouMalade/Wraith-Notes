@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type CommandPaletteIntent = "search" | "create-file";
-export type RightSidebarView = "agent" | "terminal" | "git" | "properties" | "outline";
+export type RightSidebarView = "agent" | "terminal" | "git" | "browser" | "properties" | "outline";
 
 interface UIState {
   isCommandPaletteOpen: boolean;

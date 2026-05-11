@@ -745,7 +745,14 @@ pub async fn git_status(
     app: tauri::AppHandle,
 ) -> Result<CommandOutput, AppError> {
     let workspace = current_workspace(&webview, &app)?;
-    blocking(move || run_program(workspace, "git", &["status", "--short", "--branch", "--untracked-files=all"])).await
+    blocking(move || {
+        run_program(
+            workspace,
+            "git",
+            &["status", "--short", "--branch", "--untracked-files=all"],
+        )
+    })
+    .await
 }
 
 #[tauri::command]

@@ -522,6 +522,14 @@ Desired behavior:
   reopened later.
 - Do not make the tree visually noisy.
 
+Implementation:
+
+- Added left-sidebar settings for folder, Markdown, image, PDF, and other
+  supported file icons.
+- Each setting supports only default or accent.
+- Default preserves the existing tone choices; accent affects the icon only,
+  not the row text or selection styling.
+
 ## Workstream 4: Git And Shortcuts
 
 ### Git Operation Hotkeys
@@ -678,6 +686,19 @@ Spec questions:
 - What "memory" means in V1: current URL, history, cookies/local storage, named
   sessions, or all of the above.
 
+Implementation:
+
+- Created `v4-browser-surfaces.md` and implemented the first right-sidebar
+  Browser tab.
+- The Browser tab uses a native Tauri child webview rather than an iframe.
+- The webview stays alive across right-sidebar tab changes, and Wraith hides or
+  repositions it as the React Browser panel appears, disappears, or resizes.
+- Browser chrome currently includes Back, Forward, Reload, address entry, and
+  Go.
+- The current URL is persisted in app settings as restart memory; the live
+  child webview provides in-session page state and cookie/local-storage
+  continuity.
+
 ### Localhost Browser Mode
 
 Desired behavior:
@@ -718,9 +739,10 @@ Create these only when starting the related implementation slice:
 - `v4-agent-panel.md` for structured local-agent execution, permission modes,
   UI states, and Tolaria borrowing decisions.
 - `v4-organization.md` for property-based sidebar grouping, custom colors, and
-  persisted view/section settings.
+  persisted view/section settings. Created for the V4 sidebar organization
+  slice.
 - `v4-browser-surfaces.md` for the right-sidebar browser and localhost Wraith
-  experiments.
+  experiments. Created for the V4 browser slice.
 - `v4-theme-presets.md` if saved theme presets grow beyond a focused Settings
   change.
 

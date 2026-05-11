@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,9 +14,12 @@ import "@xterm/xterm/css/xterm.css";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AiChat01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   ArrowDown01Icon,
   ArrowReloadHorizontalIcon,
   ArrowUp01Icon,
+  BrowserIcon,
   ComputerTerminal01Icon,
   AlertCircleIcon,
   CodeIcon,
@@ -33,7 +37,7 @@ import { useUIStore, type RightSidebarView } from "@/stores/ui-store";
 import { useActiveFilePath, useFileContent, useFileFrontmatter } from "@/hooks/use-tabs";
 import * as editorApi from "@/hooks/editor-api";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
-import { useSetting } from "@/hooks/use-settings";
+import { useSetSetting, useSetting } from "@/hooks/use-settings";
 import {
   AGENT_PROFILES_SETTING_KEY,
   parseAgentProfiles,
@@ -51,6 +55,7 @@ const VIEWS: Array<{ id: RightSidebarView; label: string; icon: typeof AiChat01I
   { id: "agent", label: "Agent", icon: AiChat01Icon },
   { id: "terminal", label: "Terminal", icon: ComputerTerminal01Icon },
   { id: "git", label: "Git", icon: GitBranchIcon },
+  { id: "browser", label: "Browser", icon: BrowserIcon },
   { id: "properties", label: "Properties", icon: CodeIcon },
   { id: "outline", label: "Outline", icon: LeftToRightListBulletIcon },
 ];
@@ -65,8 +70,14 @@ type AgentMessage = {
 const AGENT_PROFILE_STORAGE_KEY = "wraith.agent.profile";
 const DEFAULT_TERMINAL_FONT_FAMILY =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+const DEFAULT_BROWSER_URL = "https://www.google.com";
+
 function normalizeTerminalFontFamily(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : DEFAULT_TERMINAL_FONT_FAMILY;
+}
+
+function normalizeBrowserUrl(value: unknown, fallback = DEFAULT_BROWSER_URL) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
 function terminalTheme() {
@@ -861,6 +872,176 @@ function TerminalPanel() {
   );
 }
 
+function BrowserPanel({ isActive }: { isActive: boolean }) {
+  const isRightSidebarOpen = useUIStore((state) => state.isRightSidebarOpen);
+  const homeUrl = normalizeBrowserUrl(useSetting("browser.home-url"));
+  const lastUrl = normalizeBrowserUrl(useSetting("browser.last-url"), "");
+  const setSetting = useSetSetting();
+  const slotRef = useRef<HTMLDivElement>(null);
+  const hasShownRef = useRef(false);
+  const latestUrlRef = useRef(lastUrl || homeUrl);
+  const [address, setAddress] = useState(latestUrlRef.current);
+  const [title, setTitle] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const shouldShow = isActive && isRightSidebarOpen;
+
+  const currentBounds = useCallback((): tauri.BrowserBounds | null => {
+    const rect = slotRef.current?.getBoundingClientRect();
+    if (!rect || rect.width < 20 || rect.height < 20) return null;
+    return {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  }, []);
+
+  const persistSnapshot = useCallback(
+    (snapshot: tauri.BrowserSnapshot) => {
+      latestUrlRef.current = snapshot.url;
+      setAddress(snapshot.url);
+      setTitle(snapshot.title);
+      void setSetting("browser.last-url", snapshot.url);
+    },
+    [setSetting],
+  );
+
+  const showOrResize = useCallback(async () => {
+    if (!shouldShow) {
+      await tauri.browserHide();
+      return;
+    }
+    const bounds = currentBounds();
+    if (!bounds) return;
+    if (!hasShownRef.current) {
+      const snapshot = await tauri.browserShow(bounds, latestUrlRef.current);
+      hasShownRef.current = true;
+      persistSnapshot(snapshot);
+      return;
+    }
+    await tauri.browserSetBounds(bounds);
+  }, [currentBounds, persistSnapshot, shouldShow]);
+
+  useEffect(() => {
+    if (hasShownRef.current) return;
+    latestUrlRef.current = lastUrl || homeUrl;
+    setAddress(latestUrlRef.current);
+  }, [homeUrl, lastUrl]);
+
+  useEffect(() => {
+    let isDisposed = false;
+    let unlistenBrowser: (() => void) | null = null;
+    void listen<tauri.BrowserSnapshot>("browser:state", (event) => {
+      if (isDisposed) return;
+      persistSnapshot(event.payload);
+    }).then((unlisten) => {
+      if (isDisposed) {
+        unlisten();
+      } else {
+        unlistenBrowser = unlisten;
+      }
+    });
+    return () => {
+      isDisposed = true;
+      unlistenBrowser?.();
+    };
+  }, [persistSnapshot]);
+
+  useLayoutEffect(() => {
+    let frame = requestAnimationFrame(() => {
+      void showOrResize().catch((err) => setError(String(err)));
+    });
+    const resizeObserver = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        void showOrResize().catch((err) => setError(String(err)));
+      });
+    });
+    if (slotRef.current) resizeObserver.observe(slotRef.current);
+    window.addEventListener("resize", showOrResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", showOrResize);
+      void tauri.browserHide().catch(console.error);
+    };
+  }, [showOrResize]);
+
+  async function navigate(nextUrl = address) {
+    setError(null);
+    const trimmed = nextUrl.trim();
+    if (!trimmed) return;
+    try {
+      if (!hasShownRef.current) {
+        latestUrlRef.current = trimmed;
+        await showOrResize();
+        return;
+      }
+      const snapshot = await tauri.browserNavigate(trimmed);
+      persistSnapshot(snapshot);
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex items-center gap-1.5">
+        <PanelIconButton label="Back" onClick={() => void tauri.browserHistory("back").catch((err) => setError(String(err)))}>
+          <HugeiconsIcon icon={ArrowLeft01Icon} size={15} color="currentColor" strokeWidth={2} />
+        </PanelIconButton>
+        <PanelIconButton label="Forward" onClick={() => void tauri.browserHistory("forward").catch((err) => setError(String(err)))}>
+          <HugeiconsIcon icon={ArrowRight01Icon} size={15} color="currentColor" strokeWidth={2} />
+        </PanelIconButton>
+        <PanelIconButton label="Reload" onClick={() => void tauri.browserReload().catch((err) => setError(String(err)))}>
+          <HugeiconsIcon icon={ArrowReloadHorizontalIcon} size={15} color="currentColor" strokeWidth={2} />
+        </PanelIconButton>
+        <form
+          className="flex min-w-0 flex-1 items-center gap-1.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void navigate();
+          }}
+        >
+          <input
+            type="text"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            spellCheck={false}
+            className="h-8 min-w-0 flex-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-2 text-[12px] text-[var(--text-secondary)] outline-none focus:border-[var(--focus-border)]"
+          />
+          <button
+            type="submit"
+            aria-label="Go"
+            title="Go"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] transition-[background-color,border-color,color] hover:bg-[var(--surface-selected)]"
+          >
+            <HugeiconsIcon icon={PlayIcon} size={14} color="currentColor" strokeWidth={2} />
+          </button>
+        </form>
+      </div>
+      {(title || error) && (
+        <div
+          className={`truncate text-[12px] ${error ? "text-red-500" : "text-[var(--text-muted)]"}`}
+          title={error ?? title ?? undefined}
+        >
+          {error ?? title}
+        </div>
+      )}
+      <div
+        ref={slotRef}
+        className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--line-subtler)] bg-[var(--surface-card)]"
+      >
+        {!shouldShow && (
+          <div className="absolute inset-0 flex items-center justify-center text-[13px] text-[var(--text-muted)]">
+            Browser paused
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GitPanel({ isActive }: { isActive: boolean }) {
   const [message, setMessage] = useState("");
   const [remoteName, setRemoteName] = useState("origin");
@@ -1472,7 +1653,7 @@ export function RightSidebar() {
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-[var(--line-subtle)] bg-[var(--bg)] pt-[var(--chrome-control-padding)]">
       <div className="flex items-center gap-1 border-b border-[var(--line-subtle)] px-3 py-2">
-        <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 rounded-md bg-[var(--surface-subtle)] p-1">
+        <div className="grid min-w-0 flex-1 grid-cols-6 gap-1 rounded-md bg-[var(--surface-subtle)] p-1">
           {VIEWS.map((candidate) => (
             <button
               key={candidate.id}
@@ -1514,6 +1695,11 @@ export function RightSidebar() {
         {isMounted("git") && (
           <div className={panelClass("git")} aria-hidden={view !== "git"}>
             <GitPanel isActive={view === "git"} />
+          </div>
+        )}
+        {isMounted("browser") && (
+          <div className={panelClass("browser")} aria-hidden={view !== "browser"}>
+            <BrowserPanel isActive={view === "browser"} />
           </div>
         )}
         {isMounted("properties") && (

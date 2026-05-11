@@ -175,6 +175,43 @@ export function fuzzySearch(query: string, limit?: number): Promise<SearchResult
   return invoke("fuzzy_search", { query, limit });
 }
 
+// Browser commands
+export interface BrowserBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface BrowserSnapshot {
+  url: string;
+  title: string | null;
+}
+
+export function browserShow(bounds: BrowserBounds, url?: string | null): Promise<BrowserSnapshot> {
+  return invoke("browser_show", { bounds, url: url ?? null });
+}
+
+export function browserSetBounds(bounds: BrowserBounds): Promise<void> {
+  return invoke("browser_set_bounds", { bounds });
+}
+
+export function browserHide(): Promise<void> {
+  return invoke("browser_hide");
+}
+
+export function browserNavigate(url: string): Promise<BrowserSnapshot> {
+  return invoke("browser_navigate", { url });
+}
+
+export function browserReload(): Promise<void> {
+  return invoke("browser_reload");
+}
+
+export function browserHistory(direction: "back" | "forward"): Promise<void> {
+  return invoke("browser_history", { direction });
+}
+
 // Settings commands
 export function getSettings(): Promise<Record<string, unknown>> {
   return invoke("get_settings");

@@ -351,6 +351,22 @@
       "default": 30
     },
     {
+      "key": "browser.home-url",
+      "label": "Home URL",
+      "description": "Default URL for the right sidebar browser",
+      "category": "Browser",
+      "type": "string",
+      "default": "https://www.google.com"
+    },
+    {
+      "key": "browser.last-url",
+      "label": "Last URL",
+      "description": "The URL restored by the right sidebar browser",
+      "category": "Browser",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "terminal.font-family",
       "label": "Font Family",
       "description": "CSS font stack for the integrated terminal. Use any installed font name or stack.",
@@ -369,6 +385,51 @@
         "{\"id\":\"claude-code\",\"name\":\"Claude Code\",\"command\":\"claude -p {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Arthur can replace this with his local Claude Code command.\"}",
         "{\"id\":\"hermes\",\"name\":\"Hermes\",\"command\":\"hermes {prompt}\",\"enabled\":true,\"workingDirectory\":\"\",\"notes\":\"Local Hermes CLI.\"}"
       ]
+    },
+    {
+      "key": "sidebar.folder-color",
+      "label": "Folder Icons",
+      "description": "Color folder icons in the left sidebar",
+      "category": "Sidebar",
+      "type": "enum",
+      "options": ["default", "accent"],
+      "default": "default"
+    },
+    {
+      "key": "sidebar.markdown-color",
+      "label": "Markdown Icons",
+      "description": "Color Markdown note icons in the left sidebar",
+      "category": "Sidebar",
+      "type": "enum",
+      "options": ["default", "accent"],
+      "default": "default"
+    },
+    {
+      "key": "sidebar.image-color",
+      "label": "Image Icons",
+      "description": "Color image icons in the left sidebar",
+      "category": "Sidebar",
+      "type": "enum",
+      "options": ["default", "accent"],
+      "default": "default"
+    },
+    {
+      "key": "sidebar.pdf-color",
+      "label": "PDF Icons",
+      "description": "Color PDF icons in the left sidebar",
+      "category": "Sidebar",
+      "type": "enum",
+      "options": ["default", "accent"],
+      "default": "default"
+    },
+    {
+      "key": "sidebar.other-color",
+      "label": "Other File Icons",
+      "description": "Color other supported file icons in the left sidebar",
+      "category": "Sidebar",
+      "type": "enum",
+      "options": ["default", "accent"],
+      "default": "default"
     },
     {
       "key": "shortcuts.search",

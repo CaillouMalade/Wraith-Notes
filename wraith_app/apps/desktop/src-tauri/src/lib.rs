@@ -67,6 +67,7 @@ fn attach_window_handlers(app: &tauri::AppHandle, window: &WebviewWindow) {
         }
         WindowEvent::Destroyed => {
             commands::tools::close_window_sessions(&label);
+            commands::browser::close_window_browser(&label);
             // Remove the state; the `WorkspaceState`'s `RecommendedWatcher`
             // drops on the last `Arc` release, unregistering FSEvents/inotify.
             handle.state::<AppState>().remove(&label);
@@ -427,6 +428,12 @@ pub fn run() {
             commands::workspace::load_session,
             commands::search::index_workspace,
             commands::search::fuzzy_search,
+            commands::browser::browser_show,
+            commands::browser::browser_set_bounds,
+            commands::browser::browser_hide,
+            commands::browser::browser_navigate,
+            commands::browser::browser_reload,
+            commands::browser::browser_history,
             commands::images::save_clipboard_image,
             commands::settings::get_settings,
             commands::settings::get_setting,

@@ -16,6 +16,7 @@ import {
   Folder02Icon,
   Pdf01Icon,
 } from "@hugeicons/core-free-icons";
+import { useSetting } from "@/hooks/use-settings";
 import { useIsActive, useResolvedDocumentTitle } from "@/hooks/use-tabs";
 import {
   beginFileTreePointerDrag,
@@ -48,19 +49,34 @@ function FileIcon({ kind }: { kind: DirEntry["file_kind"] }) {
           ? File02Icon
           : FileQuestionMarkIcon;
 
-  return (
-    <span
-      className={
-        kind === "image"
-          ? "text-[var(--accent)]"
-          : kind === "pdf"
-            ? "text-[var(--text-secondary)]"
-            : ""
-      }
-    >
-      <HugeiconsIcon icon={icon} size={16} color="currentColor" strokeWidth={2} />
-    </span>
-  );
+  return <HugeiconsIcon icon={icon} size={16} color="currentColor" strokeWidth={2} />;
+}
+
+function iconToneClass(entry: DirEntry, tones: Record<string, unknown>) {
+  const accent = "text-[var(--accent)] opacity-90";
+  if (entry.is_dir) {
+    return tones["sidebar.folder-color"] === "accent"
+      ? accent
+      : "text-[var(--fg-base)] opacity-[0.54]";
+  }
+  if (entry.file_kind === "markdown") {
+    return tones["sidebar.markdown-color"] === "accent"
+      ? accent
+      : "text-[var(--fg-base)] opacity-[0.54]";
+  }
+  if (entry.file_kind === "image") {
+    return tones["sidebar.image-color"] === "accent"
+      ? accent
+      : "text-[var(--accent)] opacity-[0.54]";
+  }
+  if (entry.file_kind === "pdf") {
+    return tones["sidebar.pdf-color"] === "accent"
+      ? accent
+      : "text-[var(--text-secondary)] opacity-[0.54]";
+  }
+  return tones["sidebar.other-color"] === "accent"
+    ? accent
+    : "text-[var(--fg-base)] opacity-[0.54]";
 }
 
 interface FileTreeNodeProps {
@@ -93,6 +109,13 @@ export const FileTreeNode = memo(function FileTreeNode({
   onRenameCancel,
 }: FileTreeNodeProps) {
   const isActive = useIsActive(entry.path);
+  const iconTones = {
+    "sidebar.folder-color": useSetting("sidebar.folder-color"),
+    "sidebar.markdown-color": useSetting("sidebar.markdown-color"),
+    "sidebar.image-color": useSetting("sidebar.image-color"),
+    "sidebar.pdf-color": useSetting("sidebar.pdf-color"),
+    "sidebar.other-color": useSetting("sidebar.other-color"),
+  };
   const editorTitle = useResolvedDocumentTitle(entry.is_dir ? null : entry.path);
   const displayName = entry.is_dir
     ? entry.name
@@ -262,7 +285,7 @@ export const FileTreeNode = memo(function FileTreeNode({
         style={{ paddingLeft: depth === 0 ? 10 : depth * 12 + 6 }}
       >
         <span
-          className="flex w-5 shrink-0 items-center justify-center text-[var(--fg-base)] opacity-[0.54]"
+          className={`flex w-5 shrink-0 items-center justify-center ${iconToneClass(entry, iconTones)}`}
           aria-hidden="true"
         >
           {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon kind={entry.file_kind} />}
@@ -337,7 +360,7 @@ export const FileTreeNode = memo(function FileTreeNode({
       } ${canDragToSplit ? "cursor-grab active:cursor-grabbing" : ""}`}
       style={{ paddingLeft: depth === 0 ? 10 : depth * 12 + 6 }}
     >
-      <span className="flex w-5 shrink-0 items-center justify-center text-[var(--fg-base)] opacity-[0.54]">
+      <span className={`flex w-5 shrink-0 items-center justify-center ${iconToneClass(entry, iconTones)}`}>
         {entry.is_dir ? <FolderIcon isExpanded={isExpanded} /> : <FileIcon kind={entry.file_kind} />}
       </span>
       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>

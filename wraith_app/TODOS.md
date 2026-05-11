@@ -6,10 +6,10 @@
 
 ## Up Next
 
-- Sidebar sorting sections and conservative file/folder colors spec:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
-- Right-sidebar browser and localhost Wraith mode spec:
-  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Property-based sidebar sections:
+  [`SPECs/v4-organization.md`](SPECs/v4-organization.md)
+- Localhost/browser-hosted Wraith mode:
+  [`SPECs/v4-browser-surfaces.md`](SPECs/v4-browser-surfaces.md)
 - V4 Agent panel spec and implementation plan:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
@@ -94,3 +94,6 @@ See `CHANGELOG.md` and `git log` for shipped work. Notable items:
   shortcuts exist with empty defaults.
 - V4 wave: saved light/dark theme presets in Settings and collapsible
   note-top Properties panel.
+- V4 wave: right-sidebar Browser tab backed by a native Tauri child webview,
+  Browser memory settings, dedicated browser/organization specs, and
+  default/accent left-sidebar icon color settings.

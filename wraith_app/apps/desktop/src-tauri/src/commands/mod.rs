@@ -1,3 +1,4 @@
+pub mod browser;
 pub mod fs;
 pub mod images;
 pub mod search;
