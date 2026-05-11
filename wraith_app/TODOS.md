@@ -100,3 +100,5 @@ See `CHANGELOG.md` and `git log` for shipped work. Notable items:
 - V4 wave: Agent panel Safe / Power User modes, mode-aware Codex and Claude
   Code command templates, cleaner Codex JSON stream rendering, and collapsed
   raw/tool output details.
+- V4 bugfix: empty folders remain visible in the sidebar, so New Folder from
+  the folder tree appears immediately and can be renamed.

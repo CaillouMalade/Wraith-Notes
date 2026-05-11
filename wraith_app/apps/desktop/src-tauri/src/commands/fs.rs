@@ -266,6 +266,33 @@ fn dir_contains_supported_file(path: &Path, state: Option<&WorkspaceState>) -> b
     dir_contains_supported_file_recursive(path, None)
 }
 
+/// Empty folders are first-class organization targets: a newly created folder
+/// needs to stay visible so the sidebar can enter inline rename mode before the
+/// folder contains its first supported file.
+fn dir_is_visible_empty(path: &Path, ignore: Option<&WorkspaceIgnore>) -> bool {
+    let Ok(entries) = fs::read_dir(path) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let entry_path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        if name.starts_with('.') {
+            continue;
+        }
+        if let Some(ignore) = ignore {
+            if ignore.is_ignored(&entry_path, file_type.is_dir()) {
+                continue;
+            }
+        }
+        return false;
+    }
+    true
+}
+
 pub fn read_directory_impl(
     path: &str,
     state: Option<&WorkspaceState>,
@@ -307,7 +334,9 @@ pub fn read_directory_impl(
         }
 
         if file_type.is_dir() {
-            if dir_contains_supported_file(&entry_path, state) {
+            if dir_contains_supported_file(&entry_path, state)
+                || dir_is_visible_empty(&entry_path, ignore_matcher)
+            {
                 dirs.push(DirEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
@@ -827,7 +856,10 @@ mod tests {
             "not a real webp",
         )
         .unwrap();
-        // Create a subdirectory without markdown (should be filtered)
+        // Create an empty subdirectory. It should stay visible so a newly
+        // created folder can be renamed before it contains notes/assets.
+        fs::create_dir(dir.path().join("blank")).unwrap();
+        // Create a subdirectory without supported files (should be filtered)
         fs::create_dir(dir.path().join("empty")).unwrap();
         fs::write(dir.path().join("empty").join("data.txt"), "data").unwrap();
         dir
@@ -843,12 +875,15 @@ mod tests {
         assert_eq!(result[0].name, "assets");
         assert!(result[0].title.is_none());
         assert!(result[1].is_dir);
-        assert_eq!(result[1].name, "notes");
+        assert_eq!(result[1].name, "blank");
         assert!(result[1].title.is_none());
+        assert!(result[2].is_dir);
+        assert_eq!(result[2].name, "notes");
+        assert!(result[2].title.is_none());
         // Remaining should be files, sorted alphabetically.
-        assert!(!result[2].is_dir);
-        assert_eq!(result[2].name, "hello.md");
-        assert_eq!(result[2].title.as_deref(), Some("Hello"));
+        assert!(!result[3].is_dir);
+        assert_eq!(result[3].name, "hello.md");
+        assert_eq!(result[3].title.as_deref(), Some("Hello"));
     }
 
     #[test]
@@ -856,10 +891,13 @@ mod tests {
         let dir = setup_test_dir();
         let result = read_directory_impl(&dir.path().to_string_lossy(), None).unwrap();
 
-        // Should include supported asset files/dirs, but not readme.txt or empty/.
-        assert_eq!(result.len(), 6);
+        // Should include supported asset files/dirs and empty dirs, but not
+        // readme.txt or empty/ with only unsupported visible contents.
+        assert_eq!(result.len(), 7);
         assert!(result.iter().any(|entry| entry.name == "assets"));
+        assert!(result.iter().any(|entry| entry.name == "blank"));
         assert!(result.iter().any(|entry| entry.name == "notes"));
+        assert!(!result.iter().any(|entry| entry.name == "empty"));
         assert!(result
             .iter()
             .any(|entry| entry.name == "image.png" && entry.file_kind == "image"));
@@ -887,9 +925,10 @@ mod tests {
 
         let result = read_directory_impl(&dir.path().to_string_lossy(), Some(&state)).unwrap();
 
-        assert_eq!(result.len(), 6);
+        assert_eq!(result.len(), 7);
         assert!(result.iter().any(|entry| entry.name == "notes"));
         assert!(result.iter().any(|entry| entry.name == "assets"));
+        assert!(result.iter().any(|entry| entry.name == "blank"));
         assert!(result.iter().any(|entry| entry.name == "image.png"));
     }
 
