@@ -8,6 +8,13 @@ This document turns Arthur's `New features ideas.md` note into a Wraith-owned
 roadmap without editing the source idea note. The idea note stays a scratchpad;
 this spec is the implementation reference once V4 work starts.
 
+2026-05-11 intake: Arthur added a second feature/bugfix list. Existing V4
+items cover regular Markdown images, expanded-folder memory, sidebar sections,
+file/folder colors, Git hotkeys, and the agent-panel direction. New roadmap
+items from this intake are saved theme presets, properties-surface polish,
+right-sidebar browser memory, and an optional localhost/browser-hosted Wraith
+surface.
+
 ## Product Goal
 
 Make V4 the polished daily Wraith release: the same files-first Markdown app,
@@ -71,6 +78,60 @@ work while Arthur is away.
   interactive approve/reject prompts as the first target.
 - Codex and Claude Code are the first-class V4 agent targets. Hermes and custom
   commands may remain configurable but generic.
+
+## Workstream 0: Current Bugfix Intake
+
+These are daily-use rough edges raised after the first V4 polish pass. They can
+be fixed before or alongside the remaining roadmap items.
+
+### Configured Shortcut Precedence
+
+Arthur remapped `Cmd+E` to toggle the left sidebar, but while the editor is
+focused the inherited Markdown inline-code shortcut still inserts backticks into
+the active note. Pressing the shortcut once inserts a pair of backticks;
+repeatedly pressing it can insert a run of backticks.
+
+Desired behavior:
+
+- A configured app-level shortcut must be able to override the editor's default
+  formatting keymap when the conflict is intentional.
+- Toggling the left sidebar with `Cmd+E` must not mutate the active note.
+- Existing Markdown formatting shortcuts should continue to work when they are
+  not shadowed by a configured app-level shortcut.
+
+### Git Panel And `.claude` Worktrees
+
+The Git panel appears to struggle with `.claude` worktrees or files that do not
+seem to be considered by Git, even when Arthur cannot find an ignore rule for
+them.
+
+Desired behavior:
+
+- Inspect how the Git panel builds status, path lists, and dirty summaries for
+  `.claude` paths and nested/worktree Git layouts.
+- Distinguish "ignored", "untracked", "owned by nested repo/worktree", and
+  "outside this repository" where possible.
+- If a path is intentionally excluded by Git mechanics rather than Wraith, make
+  the Git panel explain that instead of silently dropping it.
+
+### Expanded Folder Memory Regression
+
+Expanded folder memory remains a bug, not only a nice-to-have. The full
+behavior is tracked in Workstream 3, but implementation should treat this as a
+near-term fix because repeated app restarts reset the left-sidebar hierarchy.
+
+### Terminal Scrollbar Follow-Up
+
+The terminal surface now blends better with Wraith, but the visible xterm
+scrollbar still reads as too large, blocky, and white.
+
+Desired behavior:
+
+- Prefer removing the visible terminal scrollbar if wheel/trackpad scrolling
+  remains usable.
+- Otherwise make the terminal scrollbar track/thumb fully transparent or as
+  visually quiet as the surrounding panel chrome allows.
+- Keep terminal text readable and do not regress PTY resizing/input behavior.
 
 ## Workstream 1: Polish Baseline
 
@@ -280,6 +341,11 @@ Implementation:
 - PTY startup, resize, input, output, restart, and stop behavior were left
   unchanged.
 
+Open follow-up:
+
+- Hide or fully de-emphasize the xterm scrollbar after Arthur's 2026-05-11
+  feedback that the remaining white/blocky scrollbar still feels wrong.
+
 ### Git Panel Visual Polish
 
 The Git panel is useful but can communicate state more clearly.
@@ -319,6 +385,11 @@ Implementation:
   and refreshes ahead/behind, Pull brings remote commits into the local working
   tree, Push now commits all local file changes first and then pushes, and Sync
   runs Pull followed by that commit-and-push path.
+
+Open follow-up:
+
+- Investigate `.claude` worktree/status behavior so the panel either includes
+  the expected files or clearly explains why Git itself is not reporting them.
 
 ### Right Sidebar Shape Pass
 
@@ -441,13 +512,23 @@ Desired direction:
   first V4 agent pass.
 - Keep Hermes and custom commands configurable but generic unless a later spec
   promotes them to first-class behavior.
+- Make Codex and Claude Code transcripts much calmer than raw CLI output:
+  collapse command/tool chatter, hide repetitive implementation noise by
+  default, and keep the main conversation readable.
 - Add a clear permission mode model. Tolaria's "Safe" vs "Power User" split is
   the right reference:
   - Safe: read-oriented or approval-oriented behavior.
   - Power User: workspace-write / accept-edits style behavior when Arthur
     explicitly chooses it.
+- Make the active sandbox/permission mode visible. The current chat can feel as
+  if it is stuck in sandbox mode, which makes Codex and Claude Code feel unable
+  to do useful file-writing work.
 - Make command/tool output readable and collapsible instead of flooding the
   chat transcript.
+- Re-evaluate approval handling in the dedicated spec. Safe / Power User modes
+  are still the first target, but if the CLI agents cannot write usefully
+  without interactive approve/reject flows, V4 should handle that rather than
+  leaving the agents effectively unusable.
 - Keep conversations alive when switching right-sidebar tabs.
 - Keep the app local-first. No hosted agent backend.
 
@@ -464,6 +545,88 @@ Open questions for the agent spec:
 - How much Tolaria MCP behavior should be adapted for Wraith's simpler
   Markdown-vault model.
 - Whether Wraith should expose a small bundled agent-docs context like Tolaria.
+- Whether the Claude Code and Codex VS Code extensions expose reusable UI,
+  protocol, or theme pieces. Their UX is the taste target, but direct porting
+  should only happen if the investigation shows a clean reusable surface.
+
+## Workstream 6: Theme Presets And Properties Polish
+
+### Saved Theme Presets
+
+Wraith already has strong live theme controls. V4 should make the current UI
+settings easy to save and recall as named themes.
+
+Desired behavior:
+
+- Add a theme dropdown/list where Arthur can save the current UI settings as a
+  named theme.
+- Keep separate saved presets for light mode and dark mode.
+- Preserve existing built-in presets and the existing "Custom" editing model.
+- Saved presets should include the current Wraith theme tokens such as colors,
+  fonts, translucency, contrast, and other current themeable UI settings.
+- Store presets in app settings, not in vault Markdown content.
+
+Open questions:
+
+- Whether saved presets should support rename/delete/import/export in the first
+  pass or only save/select.
+- Whether selecting a preset should copy values into the active mode or stay
+  linked to a named preset until edited.
+
+### Properties Surface Polish
+
+Desired behavior:
+
+- Make the properties/frontmatter view at the top of notes collapsible.
+- Keep the right-sidebar Properties view usable as the richer inspection/editing
+  surface.
+- Optional/later: allow choosing small icons for how properties appear in the
+  right sidebar. Arthur flagged this as not very urgent, so it should not block
+  more important properties polish.
+
+## Workstream 7: Browser Surfaces
+
+These are larger architectural bets and need dedicated specs before
+implementation.
+
+### Right-Sidebar Browser
+
+Desired behavior:
+
+- Add an actual browser surface in the right sidebar, similar in spirit to the
+  Codex in-app browser.
+- Preserve browser memory/session state across right-sidebar tab changes and
+  normal Wraith use.
+- Decide whether the browser is workspace-scoped, global, or per-tab before
+  implementation.
+- Keep the Wraith note editor as the center-panel source of truth. The browser
+  is a side tool, not a replacement app shell.
+
+Spec questions:
+
+- Which Tauri webview/window pattern can safely host arbitrary browsing inside
+  the right sidebar.
+- How navigation, history, downloads, permissions, devtools, and external links
+  should behave.
+- What "memory" means in V1: current URL, history, cookies/local storage, named
+  sessions, or all of the above.
+
+### Localhost Browser Mode
+
+Desired behavior:
+
+- Explore an "Open in browser" mode where Wraith exposes a browser-accessible
+  localhost page for the current app/workspace.
+- Treat this as separate from the right-sidebar browser. One embeds the web in
+  Wraith; the other exposes Wraith to a normal browser.
+- Preserve local-first file safety and avoid making a hosted/cloud app.
+
+Spec questions:
+
+- How local file access, auth/trust, Tauri-only IPC, and native shell features
+  map into a localhost web surface.
+- Whether this should be read/write, read-only, or experimental/dev-only at
+  first.
 
 ## Explicit Deferrals
 
@@ -473,9 +636,11 @@ These are not first-pass V4 polish tasks.
   but cursor, scrolling, selection, and CodeMirror rendering can regress
   easily. Treat it as an experiment after the concrete scroll/cursor polish.
 - Property-based sidebar sections without a dedicated organization spec.
-- True interactive CLI approval handling. V4's first agent direction is
-  Tolaria-style Safe / Power User modes.
-- Direct VS Code extension porting.
+- True interactive CLI approval handling as the default first design. V4's
+  first agent direction is Tolaria-style Safe / Power User modes, but the agent
+  spec should reopen approval handling if Codex/Claude cannot write usefully
+  without it.
+- Direct VS Code extension porting without investigation.
 - Broad visual redesign or global radius changes.
 - Arbitrary per-kind color pickers and custom per-folder colors.
 
@@ -487,12 +652,19 @@ Create these only when starting the related implementation slice:
   UI states, and Tolaria borrowing decisions.
 - `v4-organization.md` for property-based sidebar grouping, custom colors, and
   persisted view/section settings.
+- `v4-browser-surfaces.md` for the right-sidebar browser and localhost Wraith
+  experiments.
+- `v4-theme-presets.md` if saved theme presets grow beyond a focused Settings
+  change.
 
 The easy polish and editor/media items can stay tracked in this umbrella spec
 unless they grow beyond their current scope.
 
 ## Implementation Order
 
+0. Current bugfix intake: configured shortcut precedence, terminal scrollbar
+   follow-up, `.claude` Git/worktree status investigation, and expanded-folder
+   memory.
 1. Polish baseline: icon, easing, cursor, tree drag affordance, right-sidebar
    shape, terminal polish, Git status polish, and secondary drag-to-split
    affordance if it stays contained.
@@ -500,8 +672,11 @@ unless they grow beyond their current scope.
    comfort.
 3. Sidebar state: persisted expanded folder state and conservative color work.
 4. Git shortcuts.
-5. Agent panel spec, then implementation.
-6. Organization spec, then implementation.
+5. Saved theme presets and properties top-panel collapse.
+6. Agent panel spec, then implementation.
+7. Organization spec, then implementation.
+8. Browser surfaces spec, then right-sidebar browser or localhost experiment if
+   still desired.
 
 This order intentionally does the easy and medium work first, but only after
 the roadmap defines the desired feel. The hard work follows once the specs

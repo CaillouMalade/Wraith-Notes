@@ -6,7 +6,15 @@
 
 ## Up Next
 
--
+- Fix configured shortcut precedence: Arthur's `Cmd+E` left-sidebar shortcut
+  must not also trigger the editor inline-code/backtick command.
+- Hide or fully de-emphasize the integrated terminal scrollbar.
+- Investigate Git panel handling of `.claude` worktrees/paths and explain or
+  include them correctly.
+- Persist expanded folder state across close/reopen:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Regular Markdown image embeds:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ## Backlog
 
@@ -25,6 +33,17 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 - Section indicators: [`SPECs/section-indicators-spec.md`](SPECs/section-indicators-spec.md)
 - Inline media preview: [`SPECs/inline-media-preview-spec.md`](SPECs/inline-media-preview-spec.md)
 - Obsidian image embed: [`SPECs/obsidian-image-embed-spec.md`](SPECs/obsidian-image-embed-spec.md)
+- Saved theme presets for light/dark modes:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Properties top-panel collapse and optional right-sidebar property icons:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+
+### Sidebar and organization
+
+- Sidebar sorting sections and property-based grouping:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Conservative file/folder type colors:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ### Architectural bets
 
@@ -32,6 +51,13 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 - Multi window (v1 shipped — single-process multi-window): [`SPECs/multi-window-spec.md`](SPECs/multi-window-spec.md). Future work: macOS Window menu listing open workspaces, session restore of all open windows at quit, tab tear-off across windows.
 - Custom MCP: [`SPECs/custom-mcp-spec.md`](SPECs/custom-mcp-spec.md) — **high risk**. New protocol client, trust model, and tool invocation surface.
 - Writer CLI: [`SPECs/writer-cli-spec.md`](SPECs/writer-cli-spec.md) — standalone second binary; can slot in whenever convenient.
+- V4 Agent panel: structured Codex/Claude Code events, Safe / Power User modes,
+  collapsed tool output, and approval-mode investigation:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Right-sidebar browser with session memory:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- Localhost/browser-hosted Wraith mode:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ### Performance and resilience
 
