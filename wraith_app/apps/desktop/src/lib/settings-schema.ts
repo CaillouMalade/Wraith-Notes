@@ -89,13 +89,20 @@ export function presetKey(mode: ThemeMode): string {
   return `theme.${mode}.preset`;
 }
 
+export function savedPresetsKey(mode: ThemeMode): string {
+  return `theme.${mode}.saved-presets`;
+}
+
 /** Schema entries describing the editable primaries for a theme mode. UI
  *  iterates these, write paths iterate these, preset compare iterates these.
  *  The hardcoded list lives only in the JSON schema. */
 export function getPrimaryDefs(mode: ThemeMode): SettingDef[] {
   const prefix = PRIMARY_PREFIX(mode);
   const presetK = presetKey(mode);
-  return SETTINGS_SCHEMA.filter((def) => def.key.startsWith(prefix) && def.key !== presetK);
+  const savedPresetsK = savedPresetsKey(mode);
+  return SETTINGS_SCHEMA.filter(
+    (def) => def.key.startsWith(prefix) && def.key !== presetK && def.key !== savedPresetsK,
+  );
 }
 
 export function suffixOf(mode: ThemeMode, key: string): PrimarySuffix {

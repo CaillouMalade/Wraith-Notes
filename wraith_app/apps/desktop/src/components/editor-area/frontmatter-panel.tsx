@@ -1,6 +1,9 @@
 import { useCallback, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { useFrontmatterEntries } from "./use-frontmatter-entries";
 import * as editorApi from "@/hooks/editor-api";
+import { useSetSetting, useSetting } from "@/hooks/use-settings";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
 import { parseFrontmatterLinks, hasFrontmatterLinks } from "@/lib/frontmatter-links";
 import { resolveWikiLink } from "@/lib/wiki-links";
@@ -140,7 +143,10 @@ function FrontmatterRow({
 export function FrontmatterPanel({ filePath }: FrontmatterPanelProps) {
   const { entries, updateEntry, removeEntry, addEntry, blurEntry, hasFrontmatter } =
     useFrontmatterEntries(filePath);
+  const isCollapsed = useSetting("editor.frontmatter-panel-collapsed") ?? false;
+  const setSetting = useSetSetting();
   const containerRef = useRef<HTMLDivElement>(null);
+  const propertyCount = entries.filter((entry) => entry.key.trim() || entry.value.trim()).length;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>, index: number, field: "key" | "value") => {
@@ -162,32 +168,64 @@ export function FrontmatterPanel({ filePath }: FrontmatterPanelProps) {
 
   return (
     <div ref={containerRef} data-frontmatter className="space-y-2 pb-6">
-      <div className="flex flex-col gap-1.5">
-        {entries.map((entry, index) => (
-          <FrontmatterRow
-            key={index}
-            entry={entry}
-            index={index}
-            onUpdate={updateEntry}
-            onRemove={removeEntry}
-            onBlur={blurEntry}
-            onKeyDown={handleKeyDown}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center gap-4 pt-1">
+      <div className="-mx-3 flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[13px] text-[var(--text-muted)]">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="font-medium text-[var(--text-secondary)]">Properties</span>
+          <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] text-[var(--text-muted)]">
+            {propertyCount}
+          </span>
+        </div>
         <button
           type="button"
-          onClick={addEntry}
-          className="flex items-center gap-1 text-[13px] leading-[1.15] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          aria-label={isCollapsed ? "Expand properties" : "Collapse properties"}
+          title={isCollapsed ? "Expand properties" : "Collapse properties"}
+          onClick={() => void setSetting("editor.frontmatter-panel-collapsed", !isCollapsed)}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--text-icon-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          Add property
+          <HugeiconsIcon
+            icon={isCollapsed ? ArrowDown01Icon : ArrowUp01Icon}
+            size={14}
+            color="currentColor"
+            strokeWidth={2}
+          />
         </button>
       </div>
+
+      {!isCollapsed && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            {entries.map((entry, index) => (
+              <FrontmatterRow
+                key={index}
+                entry={entry}
+                index={index}
+                onUpdate={updateEntry}
+                onRemove={removeEntry}
+                onBlur={blurEntry}
+                onKeyDown={handleKeyDown}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4 pt-1">
+            <button
+              type="button"
+              onClick={addEntry}
+              className="flex items-center gap-1 text-[13px] leading-[1.15] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path
+                  d="M6 2v8M2 6h8"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Add property
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

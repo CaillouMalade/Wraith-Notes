@@ -6,9 +6,11 @@
 
 ## Up Next
 
-- Saved theme presets for light/dark modes:
+- Sidebar sorting sections and conservative file/folder colors spec:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
-- Properties top-panel collapse and optional right-sidebar property icons:
+- Right-sidebar browser and localhost Wraith mode spec:
+  [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
+- V4 Agent panel spec and implementation plan:
   [`SPECs/v4-polished-wraith-roadmap.md`](SPECs/v4-polished-wraith-roadmap.md)
 
 ## Backlog
@@ -90,3 +92,5 @@ See `CHANGELOG.md` and `git log` for shipped work. Notable items:
   expands untracked directories for `.claude`-style worktrees; regular
   Markdown image embeds render after the source text; Git Check/Pull/Push/Sync
   shortcuts exist with empty defaults.
+- V4 wave: saved light/dark theme presets in Settings and collapsible
+  note-top Properties panel.

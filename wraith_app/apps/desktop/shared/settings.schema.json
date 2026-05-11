@@ -29,6 +29,14 @@
       "default": 2
     },
     {
+      "key": "editor.frontmatter-panel-collapsed",
+      "label": "Collapse Properties",
+      "description": "Keep the top note properties panel collapsed by default",
+      "category": "Editor",
+      "type": "boolean",
+      "default": false
+    },
+    {
       "key": "appearance.theme",
       "label": "Schema",
       "description": "Light or dark color schema",
@@ -70,6 +78,14 @@
       "$comment": "Valid values are populated at runtime from shared/themes/*.json plus the special \"custom\" sentinel; we intentionally don't enum-constrain the contract so adding a preset doesn't require a schema edit.",
       "type": "string",
       "default": "Writer"
+    },
+    {
+      "key": "theme.light.saved-presets",
+      "label": "Saved Presets",
+      "description": "Saved light theme presets",
+      "category": "Theme",
+      "type": "list",
+      "default": []
     },
     {
       "key": "theme.light.accent",
@@ -146,6 +162,14 @@
       "$comment": "Valid values are populated at runtime from shared/themes/*.json plus the special \"custom\" sentinel; we intentionally don't enum-constrain the contract so adding a preset doesn't require a schema edit.",
       "type": "string",
       "default": "Writer"
+    },
+    {
+      "key": "theme.dark.saved-presets",
+      "label": "Saved Presets",
+      "description": "Saved dark theme presets",
+      "category": "Theme",
+      "type": "list",
+      "default": []
     },
     {
       "key": "theme.dark.accent",

@@ -618,6 +618,19 @@ Open questions:
 - Whether selecting a preset should copy values into the active mode or stay
   linked to a named preset until edited.
 
+Implementation:
+
+- Theme settings now include separate saved-preset lists for light mode and dark
+  mode.
+- Each mode card has one preset selector containing Custom, built-in presets,
+  and Arthur-saved presets.
+- Saving captures the current mode's theme tokens, supports overwrite by name,
+  and keeps presets in app settings rather than vault content.
+- Selecting either a built-in or saved preset copies those values into the
+  active mode. Editing an individual theme token returns that mode to Custom.
+- First-pass saved presets support save, select, overwrite, and delete. Rename
+  and import/export remain deferred until they are clearly useful.
+
 ### Properties Surface Polish
 
 Desired behavior:
@@ -628,6 +641,15 @@ Desired behavior:
 - Optional/later: allow choosing small icons for how properties appear in the
   right sidebar. Arthur flagged this as not very urgent, so it should not block
   more important properties polish.
+
+Implementation:
+
+- The note-top Properties/frontmatter panel now has a compact header with a
+  persisted collapse toggle.
+- Collapsing hides the editable rows and Add property control without removing
+  the note's frontmatter or disabling the right-sidebar Properties view.
+- Property icons remain deferred because they are visual garnish, not a current
+  daily-use blocker.
 
 ## Workstream 7: Browser Surfaces
 

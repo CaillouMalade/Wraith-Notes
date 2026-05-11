@@ -2,6 +2,7 @@
 
 ## 2026-05-11
 
+- Continue the V4 daily-use wave: Theme settings now support separate saved preset lists for light and dark mode, alongside the built-in presets and Custom state; the current UI theme tokens can be saved, reapplied, overwritten, or deleted from the mode-specific theme card. The note-top Properties/frontmatter panel is now collapsible through a persisted editor setting, keeping the richer editable property rows available without forcing them to occupy vertical space on every note.
 - Start the next V4 implementation wave: app-level shortcut handling now runs before CodeMirror so a remapped `Cmd+E` can toggle the left sidebar without inserting inline-code backticks; the integrated terminal hides xterm's remaining visible scrollbar; expanded folder state is persisted per workspace in the existing session file and restored on reopen while pruning stale deleted folders; Git status now uses `--untracked-files=all` so untracked `.claude` worktree contents are less likely to collapse into invisible directories; regular Markdown image syntax renders a separate editable-source-preserving preview below `![alt](path)` using the existing vault asset resolver; and Git Check/Pull/Push/Sync shortcuts are available in Settings with empty defaults.
 
 ## 2026-05-10
