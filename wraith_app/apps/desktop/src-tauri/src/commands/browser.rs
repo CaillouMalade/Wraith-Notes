@@ -9,6 +9,36 @@ use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Url, Webview, Webv
 const DEFAULT_BROWSER_URL: &str = "https://www.google.com";
 const HIDDEN_POS: f64 = -20_000.0;
 
+// Inject a thin overlay-style scrollbar so pages render with a tasteful gutter
+// when the user has macOS set to "Show scroll bars: Always" or is on Windows.
+const SCROLLBAR_POLISH_SCRIPT: &str = r#"
+(function () {
+  function inject() {
+    if (document.getElementById('__wraith_browser_scrollbar_polish')) return;
+    var style = document.createElement('style');
+    style.id = '__wraith_browser_scrollbar_polish';
+    style.textContent = [
+      '::-webkit-scrollbar { width: 10px; height: 10px; }',
+      '::-webkit-scrollbar-track { background: transparent; }',
+      '::-webkit-scrollbar-thumb {',
+      '  background: rgba(128,128,128,0.35);',
+      '  border-radius: 6px;',
+      '  border: 2px solid transparent;',
+      '  background-clip: padding-box;',
+      '}',
+      '::-webkit-scrollbar-thumb:hover { background-color: rgba(128,128,128,0.6); background-clip: padding-box; }',
+      '::-webkit-scrollbar-corner { background: transparent; }'
+    ].join('\n');
+    (document.head || document.documentElement).appendChild(style);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inject, { once: true });
+  } else {
+    inject();
+  }
+})();
+"#;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct BrowserBounds {
     x: f64,
@@ -115,6 +145,7 @@ fn emit_snapshot(app: &AppHandle, window_label: &str) {
 pub async fn browser_show(
     bounds: BrowserBounds,
     url: Option<String>,
+    zoom: Option<f64>,
     webview: tauri::Webview,
     app: AppHandle,
 ) -> Result<BrowserSnapshot, AppError> {
@@ -131,6 +162,9 @@ pub async fn browser_show(
             entry.url = target_url.to_string();
             entry.title = None;
         }
+        if let Some(z) = zoom {
+            let _ = entry.webview.set_zoom(z.clamp(0.25, 5.0));
+        }
         return Ok(BrowserSnapshot {
             url: entry.url.clone(),
             title: entry.title.clone(),
@@ -146,6 +180,8 @@ pub async fn browser_show(
 
     let builder = WebviewBuilder::new(child_label, WebviewUrl::External(target_url.clone()))
         .accept_first_mouse(true)
+        .zoom_hotkeys_enabled(true)
+        .initialization_script_for_all_frames(SCROLLBAR_POLISH_SCRIPT)
         .on_document_title_changed(move |_browser, title| {
             if let Some(entry) = browsers().lock().get_mut(&state_label_for_title) {
                 entry.title = Some(title);
@@ -169,6 +205,9 @@ pub async fn browser_show(
         )
         .map_err(|err| AppError::Io(err.to_string()))?;
 
+    let initial_zoom = zoom.unwrap_or(0.75).clamp(0.25, 5.0);
+    let _ = browser.set_zoom(initial_zoom);
+
     let snapshot = BrowserSnapshot {
         url: target_url.to_string(),
         title: None,
@@ -182,6 +221,18 @@ pub async fn browser_show(
         },
     );
     Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn browser_set_zoom(zoom: f64, webview: tauri::Webview) -> Result<(), AppError> {
+    let window_label = webview.label().to_string();
+    if let Some(entry) = browsers().lock().get(&window_label) {
+        entry
+            .webview
+            .set_zoom(zoom.clamp(0.25, 5.0))
+            .map_err(|err| AppError::Io(err.to_string()))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -2,6 +2,7 @@
 
 ## 2026-05-15
 
+- Post-V3 daily-use polish around the V4 browser/zoom feedback: harden left-sidebar Finder-drop reliability by walking both the DPI-adjusted and raw native drop coordinates before deciding the target folder; give the right-sidebar browser a sensible default zoom (75%) plus zoom-in/-out/reset chrome and a persisted `browser.zoom` setting; inject a thin scrollbar polyfill into the embedded browser so macOS "Always show scroll bars" no longer floods the column with chunky tracks; and stop Cmd+/- from zooming the whole Wraith window. The Tauri zoom hotkeys are disabled on the parent webview, the browser child webview gets its own `zoom_hotkeys_enabled`, and a custom Cmd+/-/0 handler routes to the focused panel — editor font size (persisted on the active theme), terminal `fontSize`, or the right-sidebar browser zoom.
 - Finish the V3 polished theme builder slice: Light and Dark theme cards now expose UI Scale, per-mode editor font size, heading font, and accent-heading controls; saved mode-specific presets capture and restore those fields; built-in theme JSON includes deterministic defaults; and active theme application pushes UI scale plus heading typography/color through CSS variables while preserving the legacy `editor.font-size` setting for compatibility.
 
 ## 2026-05-11

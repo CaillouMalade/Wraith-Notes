@@ -5,6 +5,7 @@ import { WindowTitle } from "./components/window-title";
 import { useWorkspace, useIsStartupResolved } from "./hooks/use-workspace";
 import { useFileWatcher } from "./hooks/use-file-watcher";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useZoomHotkeys } from "./hooks/use-zoom-hotkeys";
 import { useMenuEvents } from "./hooks/use-menu-events";
 import { useOpenDrop } from "./hooks/use-open-drop";
 import { useGitAutomation } from "./hooks/use-git-automation";
@@ -16,6 +17,7 @@ function App() {
 
   useFileWatcher();
   useKeyboardShortcuts();
+  useZoomHotkeys();
   useMenuEvents();
   useOpenDrop();
   useGitAutomation();

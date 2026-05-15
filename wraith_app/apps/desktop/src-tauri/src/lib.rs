@@ -434,6 +434,7 @@ pub fn run() {
             commands::browser::browser_navigate,
             commands::browser::browser_reload,
             commands::browser::browser_history,
+            commands::browser::browser_set_zoom,
             commands::images::save_clipboard_image,
             commands::settings::get_settings,
             commands::settings::get_setting,

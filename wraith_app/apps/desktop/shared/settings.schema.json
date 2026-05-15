@@ -449,6 +449,17 @@
       "default": ""
     },
     {
+      "key": "browser.zoom",
+      "label": "Browser Zoom",
+      "description": "Default zoom level for the right sidebar browser. 1.0 is the native page size; 0.75 fits typical desktop sites into the narrow sidebar column.",
+      "category": "Browser",
+      "type": "range",
+      "min": 0.5,
+      "max": 1.5,
+      "step": 0.05,
+      "default": 0.75
+    },
+    {
       "key": "terminal.font-family",
       "label": "Font Family",
       "description": "CSS font stack for the integrated terminal. Use any installed font name or stack.",

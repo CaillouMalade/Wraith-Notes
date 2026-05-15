@@ -188,8 +188,12 @@ export interface BrowserSnapshot {
   title: string | null;
 }
 
-export function browserShow(bounds: BrowserBounds, url?: string | null): Promise<BrowserSnapshot> {
-  return invoke("browser_show", { bounds, url: url ?? null });
+export function browserShow(
+  bounds: BrowserBounds,
+  url?: string | null,
+  zoom?: number | null,
+): Promise<BrowserSnapshot> {
+  return invoke("browser_show", { bounds, url: url ?? null, zoom: zoom ?? null });
 }
 
 export function browserSetBounds(bounds: BrowserBounds): Promise<void> {
@@ -210,6 +214,10 @@ export function browserReload(): Promise<void> {
 
 export function browserHistory(direction: "back" | "forward"): Promise<void> {
   return invoke("browser_history", { direction });
+}
+
+export function browserSetZoom(zoom: number): Promise<void> {
+  return invoke("browser_set_zoom", { zoom });
 }
 
 // Settings commands

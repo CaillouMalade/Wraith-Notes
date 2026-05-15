@@ -29,8 +29,10 @@ import {
   GitBranchIcon,
   LeftToRightListBulletIcon,
   Link01Icon,
+  MinusSignIcon,
   PanelRightCloseIcon,
   PlayIcon,
+  PlusSignIcon,
   StopIcon,
 } from "@hugeicons/core-free-icons";
 import { useUIStore, type RightSidebarView } from "@/stores/ui-store";
@@ -96,6 +98,16 @@ function normalizeTerminalFontFamily(value: unknown) {
 
 function normalizeBrowserUrl(value: unknown, fallback = DEFAULT_BROWSER_URL) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+const BROWSER_ZOOM_DEFAULT = 0.75;
+const BROWSER_ZOOM_MIN = 0.5;
+const BROWSER_ZOOM_MAX = 1.5;
+const BROWSER_ZOOM_STEP = 0.1;
+
+function normalizeBrowserZoom(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return BROWSER_ZOOM_DEFAULT;
+  return Math.max(BROWSER_ZOOM_MIN, Math.min(BROWSER_ZOOM_MAX, value));
 }
 
 function normalizeAgentPermissionMode(value: unknown): AgentPermissionMode {
@@ -946,6 +958,10 @@ function AgentPanel() {
   );
 }
 
+const TERMINAL_FONT_SIZE_MIN = 8;
+const TERMINAL_FONT_SIZE_MAX = 28;
+const TERMINAL_FONT_SIZE_DEFAULT = 12;
+
 function TerminalPanel() {
   const [session, setSession] = useState<tauri.TerminalStartResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -957,6 +973,7 @@ function TerminalPanel() {
   const sessionIdRef = useRef<string | null>(null);
   const isStartingRef = useRef(false);
   const terminalFontFamilyRef = useRef(terminalFontFamily);
+  const terminalFontSizeRef = useRef(TERMINAL_FONT_SIZE_DEFAULT);
 
   const resizeTerminal = useCallback(() => {
     const terminal = terminalRef.current;
@@ -1015,6 +1032,27 @@ function TerminalPanel() {
     };
     requestAnimationFrame(resizeTerminal);
   }, [resizeTerminal, terminalFontFamily]);
+
+  useEffect(() => {
+    function applyFontSize(next: number) {
+      const clamped = Math.max(TERMINAL_FONT_SIZE_MIN, Math.min(TERMINAL_FONT_SIZE_MAX, next));
+      if (clamped === terminalFontSizeRef.current) return;
+      terminalFontSizeRef.current = clamped;
+      const terminal = terminalRef.current;
+      if (!terminal) return;
+      terminal.options = { fontSize: clamped };
+      requestAnimationFrame(resizeTerminal);
+    }
+    function handleZoom(event: Event) {
+      const detail = (event as CustomEvent<{ direction: "in" | "out" | "reset" }>).detail;
+      if (!detail) return;
+      if (detail.direction === "reset") applyFontSize(TERMINAL_FONT_SIZE_DEFAULT);
+      else if (detail.direction === "in") applyFontSize(terminalFontSizeRef.current + 1);
+      else applyFontSize(terminalFontSizeRef.current - 1);
+    }
+    window.addEventListener("wraith:terminal-zoom", handleZoom);
+    return () => window.removeEventListener("wraith:terminal-zoom", handleZoom);
+  }, [resizeTerminal]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1127,13 +1165,16 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
   const isRightSidebarOpen = useUIStore((state) => state.isRightSidebarOpen);
   const homeUrl = normalizeBrowserUrl(useSetting("browser.home-url"));
   const lastUrl = normalizeBrowserUrl(useSetting("browser.last-url"), "");
+  const storedZoom = normalizeBrowserZoom(useSetting("browser.zoom"));
   const setSetting = useSetSetting();
   const slotRef = useRef<HTMLDivElement>(null);
   const hasShownRef = useRef(false);
   const latestUrlRef = useRef(lastUrl || homeUrl);
+  const latestZoomRef = useRef(storedZoom);
   const [address, setAddress] = useState(latestUrlRef.current);
   const [title, setTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(storedZoom);
   const shouldShow = isActive && isRightSidebarOpen;
 
   const currentBounds = useCallback((): tauri.BrowserBounds | null => {
@@ -1165,7 +1206,11 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
     const bounds = currentBounds();
     if (!bounds) return;
     if (!hasShownRef.current) {
-      const snapshot = await tauri.browserShow(bounds, latestUrlRef.current);
+      const snapshot = await tauri.browserShow(
+        bounds,
+        latestUrlRef.current,
+        latestZoomRef.current,
+      );
       hasShownRef.current = true;
       persistSnapshot(snapshot);
       return;
@@ -1178,6 +1223,12 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
     latestUrlRef.current = lastUrl || homeUrl;
     setAddress(latestUrlRef.current);
   }, [homeUrl, lastUrl]);
+
+  useEffect(() => {
+    latestZoomRef.current = zoom;
+    if (!hasShownRef.current) return;
+    void tauri.browserSetZoom(zoom).catch((err) => setError(String(err)));
+  }, [zoom]);
 
   useEffect(() => {
     let isDisposed = false;
@@ -1235,8 +1286,33 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
     }
   }
 
+  const applyZoom = useCallback(
+    (next: number) => {
+      const clamped = normalizeBrowserZoom(next);
+      setZoom((prev) => (Math.abs(prev - clamped) < 0.001 ? prev : clamped));
+      void setSetting("browser.zoom", clamped).catch((err) => setError(String(err)));
+    },
+    [setSetting],
+  );
+
+  const zoomIn = useCallback(() => applyZoom(latestZoomRef.current + BROWSER_ZOOM_STEP), [applyZoom]);
+  const zoomOut = useCallback(() => applyZoom(latestZoomRef.current - BROWSER_ZOOM_STEP), [applyZoom]);
+  const resetZoom = useCallback(() => applyZoom(BROWSER_ZOOM_DEFAULT), [applyZoom]);
+
+  useEffect(() => {
+    function handleZoom(event: Event) {
+      const detail = (event as CustomEvent<{ direction: "in" | "out" | "reset" }>).detail;
+      if (!detail) return;
+      if (detail.direction === "in") zoomIn();
+      else if (detail.direction === "out") zoomOut();
+      else resetZoom();
+    }
+    window.addEventListener("wraith:browser-zoom", handleZoom);
+    return () => window.removeEventListener("wraith:browser-zoom", handleZoom);
+  }, [zoomIn, zoomOut, resetZoom]);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div data-wraith-panel="browser" className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-1.5">
         <PanelIconButton label="Back" onClick={() => void tauri.browserHistory("back").catch((err) => setError(String(err)))}>
           <HugeiconsIcon icon={ArrowLeft01Icon} size={15} color="currentColor" strokeWidth={2} />
@@ -1270,6 +1346,24 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
             <HugeiconsIcon icon={PlayIcon} size={14} color="currentColor" strokeWidth={2} />
           </button>
         </form>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <PanelIconButton label={`Zoom out (${Math.round(zoom * 100)}%)`} onClick={zoomOut} disabled={zoom <= BROWSER_ZOOM_MIN + 1e-3}>
+          <HugeiconsIcon icon={MinusSignIcon} size={13} color="currentColor" strokeWidth={2} />
+        </PanelIconButton>
+        <button
+          type="button"
+          onClick={resetZoom}
+          aria-label={`Reset browser zoom (currently ${Math.round(zoom * 100)}%)`}
+          title="Reset zoom"
+          className="h-7 min-w-[3rem] rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-2 text-[0.6875rem] tabular-nums text-[var(--text-muted)] transition-[background-color,border-color,color] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <PanelIconButton label={`Zoom in (${Math.round(zoom * 100)}%)`} onClick={zoomIn} disabled={zoom >= BROWSER_ZOOM_MAX - 1e-3}>
+          <HugeiconsIcon icon={PlusSignIcon} size={13} color="currentColor" strokeWidth={2} />
+        </PanelIconButton>
+        <div className="flex-1" />
       </div>
       {(title || error) && (
         <div

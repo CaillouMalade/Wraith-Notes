@@ -25,7 +25,7 @@ import * as tauri from "@/lib/tauri";
 import { requestGitRefresh } from "@/lib/git-refresh";
 import { getFileStem, getParentDir, getRelativePath } from "@/lib/paths";
 import {
-  elementFromNativeDrop,
+  elementsFromNativeDrop,
   getNativeDropPaths,
   listenForNativeFileDrops,
   type NativeFileDropPayload,
@@ -159,11 +159,17 @@ export function FileTree({ rootPath }: FileTreeProps) {
       const paths = getNativeDropPaths(payload);
       if (paths.length === 0) return;
 
-      const target = elementFromNativeDrop(payload);
-      const treeRoot = target?.closest<HTMLElement>("[data-file-tree-root]");
+      // Walk both the DPI-adjusted and the raw drop coordinates so Retina vs
+      // non-Retina reporting differences cannot drop the import on the floor.
+      let treeRoot: HTMLElement | null = null;
+      let node: HTMLElement | null = null;
+      for (const candidate of elementsFromNativeDrop(payload)) {
+        if (!treeRoot) treeRoot = candidate.closest<HTMLElement>("[data-file-tree-root]");
+        if (!node) node = candidate.closest<HTMLElement>("[data-file-tree-path]");
+        if (treeRoot) break;
+      }
       if (!treeRoot) return;
 
-      const node = target?.closest<HTMLElement>("[data-file-tree-path]");
       const nodePath = node?.dataset.fileTreePath;
       const targetDir =
         nodePath && node?.dataset.fileTreeIsDir !== "true" ? getParentDir(nodePath) : nodePath ?? rootPath;

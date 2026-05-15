@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "browser-child",
+  "description": "Minimal capability for the right-sidebar browser child webview. Grants only the set-webview-zoom permission so the wry Cmd+/- polyfill (enabled via `zoom_hotkeys_enabled(true)` on the child) can apply inside the embedded site. Does NOT inherit any Wraith IPC commands — arbitrary remote pages must never reach the parent's fs/workspace bridge.",
+  "windows": ["main-browser", "w-*-browser"],
+  "permissions": ["core:webview:allow-set-webview-zoom"]
+}
