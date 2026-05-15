@@ -22,6 +22,9 @@ export function SettingsPanel({ isActive }: { isActive: boolean }) {
     for (const def of SETTINGS_SCHEMA) {
       // Theme settings are owned by ThemesSection; keep them out of the generic renderer.
       if (def.category === "Theme") continue;
+      // Editor font size moved into the per-light/dark Theme Builder; keep the
+      // historical setting in the schema for config compatibility only.
+      if (def.key === "editor.font-size") continue;
       // Shortcut settings need key-capture controls instead of ordinary text inputs.
       if (def.category === "Shortcuts") continue;
       // Agent profiles are structured JSON strings in the settings layer, edited by a dedicated UI.
@@ -40,7 +43,7 @@ export function SettingsPanel({ isActive }: { isActive: boolean }) {
   function renderSection(category: string, defs: SettingDef[]) {
     return (
       <section key={category} className="mb-10">
-        <h2 className="mb-3 text-[13px] font-medium text-[var(--text-muted)]">{category}</h2>
+        <h2 className="mb-3 text-[0.8125rem] font-medium text-[var(--text-muted)]">{category}</h2>
         <div className="-mx-4 overflow-hidden rounded-2xl border border-[var(--line-subtler)] bg-[var(--surface-card)]">
           {defs.map((def, i) => (
             <div

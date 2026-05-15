@@ -2,7 +2,7 @@ import { useOpenCommandPalette } from "@/hooks/use-command-palette";
 
 function Shortcut({ children }: { children: string }) {
   return (
-    <kbd className="text-[11px] tracking-[0.2em] text-[var(--text-icon-muted)]">{children}</kbd>
+    <kbd className="text-[0.6875rem] tracking-[0.2em] text-[var(--text-icon-muted)]">{children}</kbd>
   );
 }
 
@@ -15,7 +15,7 @@ export function NewTabPage() {
         <button
           type="button"
           onClick={() => openCommandPalette("create-file")}
-          className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          className="flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
           Create new note
           <Shortcut>⌘N</Shortcut>
@@ -24,7 +24,7 @@ export function NewTabPage() {
         <button
           type="button"
           onClick={() => openCommandPalette("search")}
-          className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          className="flex items-center gap-1.5 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
           Search
           <Shortcut>⌘O</Shortcut>

@@ -3,7 +3,11 @@
   "background": "#F6EFE3",
   "foreground": "#2A211A",
   "ui-font": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\"",
+  "ui-scale": 100,
   "editor-font": "\"Iowan Old Style\", \"Charter\", Georgia, \"Times New Roman\", serif",
+  "editor-font-size": 16,
+  "heading-font": "\"Iowan Old Style\", \"Charter\", Georgia, \"Times New Roman\", serif",
+  "heading-accent": false,
   "translucent": 0,
   "contrast": 19
 }

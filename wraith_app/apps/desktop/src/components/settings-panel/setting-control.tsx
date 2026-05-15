@@ -36,7 +36,7 @@ function NumberControl({ value, onChange }: { value: number; onChange: (v: numbe
         const n = parseFloat(e.target.value);
         if (!Number.isNaN(n)) onChange(n);
       }}
-      className="w-28 h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[13px] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      className="w-28 h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[0.8125rem] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     />
   );
 }
@@ -47,7 +47,7 @@ function StringControl({ value, onChange }: { value: string; onChange: (v: strin
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-64 h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[13px] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none"
+      className="w-64 h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[0.8125rem] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none"
     />
   );
 }
@@ -65,7 +65,7 @@ function EnumControl({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="min-w-[140px] h-9 appearance-none rounded-lg border border-transparent bg-[var(--surface-input)] bg-[length:12px_12px] bg-[position:right_10px_center] bg-no-repeat pl-3 pr-8 text-[13px] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none bg-[image:var(--select-chevron)]"
+      className="min-w-[140px] h-9 appearance-none rounded-lg border border-transparent bg-[var(--surface-input)] bg-[length:12px_12px] bg-[position:right_10px_center] bg-no-repeat pl-3 pr-8 text-[0.8125rem] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none bg-[image:var(--select-chevron)]"
     >
       {options.map((opt) => (
         <option key={opt} value={opt}>
@@ -124,7 +124,7 @@ export function ColorControl({
           if (e.key === "Enter") commit((e.target as HTMLInputElement).value);
         }}
         spellCheck={false}
-        className="flex-1 bg-transparent font-mono text-[13px] uppercase tracking-wide text-[var(--text-secondary)] outline-none"
+        className="flex-1 bg-transparent font-mono text-[0.8125rem] uppercase tracking-wide text-[var(--text-secondary)] outline-none"
       />
     </div>
   );
@@ -135,12 +135,14 @@ export function RangeControl({
   min,
   max,
   step,
+  valueSuffix = "",
   onChange,
 }: {
   value: number;
   min: number;
   max: number;
   step: number;
+  valueSuffix?: string;
   onChange: (v: number) => void;
 }) {
   return (
@@ -154,8 +156,8 @@ export function RangeControl({
         onChange={(e) => onChange(Number(e.target.value))}
         className="h-1 w-44 appearance-none rounded-full bg-[var(--surface-subtle)] accent-[var(--accent)] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow"
       />
-      <span className="w-8 shrink-0 text-right text-[13px] tabular-nums text-[var(--text-muted)]">
-        {Math.round(value)}
+      <span className="w-10 shrink-0 text-right text-[0.8125rem] tabular-nums text-[var(--text-muted)]">
+        {Math.round(value)}{valueSuffix}
       </span>
     </div>
   );
@@ -184,13 +186,13 @@ function ListControl({ value, onChange }: { value: string[]; onChange: (v: strin
             type="text"
             value={item}
             onChange={(e) => handleChange(i, e.target.value)}
-            className="h-9 w-64 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[13px] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none"
+            className="h-9 w-64 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[0.8125rem] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none"
           />
           <button
             type="button"
             onClick={() => handleRemove(i)}
             aria-label="Remove item"
-            className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[13px] leading-none text-[var(--text-icon-muted)] hover:text-[var(--text-secondary)]"
+            className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.8125rem] leading-none text-[var(--text-icon-muted)] hover:text-[var(--text-secondary)]"
           >
             ×
           </button>
@@ -199,7 +201,7 @@ function ListControl({ value, onChange }: { value: string[]; onChange: (v: strin
       <button
         type="button"
         onClick={handleAdd}
-        className="mr-6 flex h-9 w-64 items-center justify-center rounded-lg border border-dashed border-[var(--line-subtle)] text-[13px] text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        className="mr-6 flex h-9 w-64 items-center justify-center rounded-lg border border-dashed border-[var(--line-subtle)] text-[0.8125rem] text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]"
       >
         + Add
       </button>
@@ -241,6 +243,7 @@ export function Control({
           min={def.min ?? 0}
           max={def.max ?? 100}
           step={def.step ?? 1}
+          valueSuffix={def.key.endsWith(".ui-scale") ? "%" : ""}
           onChange={onChange}
         />
       );
@@ -251,9 +254,9 @@ export function SettingControl({ def, value, onChange, onReset, isModified }: Se
   return (
     <div className="flex items-start justify-between gap-4 px-4 py-3.5">
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-[var(--text-primary)]">{def.label}</div>
+        <div className="text-[0.8125rem] font-medium text-[var(--text-primary)]">{def.label}</div>
         {def.description && (
-          <div className="mt-0.5 text-[13px] text-[var(--text-muted)]">{def.description}</div>
+          <div className="mt-0.5 text-[0.8125rem] text-[var(--text-muted)]">{def.description}</div>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -262,7 +265,7 @@ export function SettingControl({ def, value, onChange, onReset, isModified }: Se
           onClick={onReset}
           aria-hidden={!isModified}
           tabIndex={isModified ? 0 : -1}
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-subtle-strong)] hover:text-[var(--text-primary)] ${
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-subtle-strong)] hover:text-[var(--text-primary)] ${
             isModified ? "" : "invisible pointer-events-none"
           }`}
           title="Reset to default"

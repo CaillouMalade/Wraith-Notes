@@ -59,7 +59,7 @@ function ShortcutButton({
       onBlur={() => {
         if (isCapturing) onCancel();
       }}
-      className={`h-9 min-w-36 rounded-lg border px-3 text-center font-mono text-[13px] outline-none focus-visible:outline-none ${
+      className={`h-9 min-w-36 rounded-lg border px-3 text-center font-mono text-[0.8125rem] outline-none focus-visible:outline-none ${
         isCapturing
           ? "border-[var(--focus-border)] bg-[var(--surface-subtle-strong)] text-[var(--text-primary)]"
           : isConflict
@@ -118,7 +118,7 @@ export function ShortcutsSection() {
 
   return (
     <section className="mb-10">
-      <h2 className="mb-3 text-[13px] font-medium text-[var(--text-muted)]">
+      <h2 className="mb-3 text-[0.8125rem] font-medium text-[var(--text-muted)]">
         Keyboard Shortcuts
       </h2>
       <div className="-mx-4 overflow-hidden rounded-2xl border border-[var(--line-subtler)] bg-[var(--surface-card)]">
@@ -134,14 +134,14 @@ export function ShortcutsSection() {
             >
               <div className="flex items-start justify-between gap-4 px-4 py-3.5">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-medium text-[var(--text-primary)]">
+                  <div className="text-[0.8125rem] font-medium text-[var(--text-primary)]">
                     {action.label}
                   </div>
-                  <div className="mt-0.5 text-[13px] text-[var(--text-muted)]">
+                  <div className="mt-0.5 text-[0.8125rem] text-[var(--text-muted)]">
                     {action.description}
                   </div>
                   {isConflict ? (
-                    <div className="mt-1 text-[12px] text-[#ff5f57]">
+                    <div className="mt-1 text-[0.75rem] text-[#ff5f57]">
                       This shortcut is assigned more than once.
                     </div>
                   ) : null}
@@ -155,7 +155,7 @@ export function ShortcutsSection() {
                     }}
                     aria-hidden={!isModified(action.key)}
                     tabIndex={isModified(action.key) ? 0 : -1}
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-subtle-strong)] hover:text-[var(--text-primary)] ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-subtle-strong)] hover:text-[var(--text-primary)] ${
                       isModified(action.key) ? "" : "invisible pointer-events-none"
                     }`}
                     title="Reset to default"

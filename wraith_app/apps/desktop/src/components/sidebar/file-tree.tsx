@@ -659,7 +659,7 @@ export function FileTree({ rootPath }: FileTreeProps) {
     >
       {flatItems.length === 0 ? (
         <div
-          className={`rounded-md border px-2 py-3 text-[13px] transition-colors duration-[var(--motion-quick-duration)] ${
+          className={`rounded-md border px-2 py-3 text-[0.8125rem] transition-colors duration-[var(--motion-quick-duration)] ${
             isRootDropTarget
               ? "border-dashed border-[var(--accent)] text-[var(--text-secondary)]"
               : "border-transparent text-[var(--text-muted)]"

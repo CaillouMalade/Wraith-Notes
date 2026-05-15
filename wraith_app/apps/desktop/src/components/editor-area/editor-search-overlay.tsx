@@ -167,12 +167,12 @@ export function EditorSearchOverlay() {
             onKeyDown={onFindKeyDown}
             placeholder="Find"
             aria-label="Find"
-            className="w-full rounded-lg bg-[var(--surface-input)] pl-[34px] pr-16 text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none h-[var(--chrome-control-height)]"
+            className="w-full rounded-lg bg-[var(--surface-input)] pl-[34px] pr-16 text-[0.8125rem] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none h-[var(--chrome-control-height)]"
           />
           {matchInfo && query && (
             <span
               aria-live="polite"
-              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] tabular-nums text-[var(--text-muted)]"
+              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.75rem] tabular-nums text-[var(--text-muted)]"
             >
               {matchInfo.total === 0 ? "No matches" : `${matchInfo.current}/${matchInfo.total}`}
             </span>
@@ -189,7 +189,7 @@ export function EditorSearchOverlay() {
           onClick={() => setShowReplace((v) => !v)}
           aria-pressed={showReplace}
           aria-label="Toggle replace"
-          className={`shrink-0 rounded-md px-2 text-[12px] tracking-tight transition-colors h-[var(--chrome-control-height)] ${
+          className={`shrink-0 rounded-md px-2 text-[0.75rem] tracking-tight transition-colors h-[var(--chrome-control-height)] ${
             showReplace
               ? "bg-[var(--surface-selected)] text-[var(--text-primary)]"
               : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-secondary)]"
@@ -211,19 +211,19 @@ export function EditorSearchOverlay() {
             onKeyDown={onReplaceKeyDown}
             placeholder="Replace"
             aria-label="Replace"
-            className="min-w-0 flex-1 rounded-lg bg-[var(--surface-input)] px-2 text-[13px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none h-[var(--chrome-control-height)]"
+            className="min-w-0 flex-1 rounded-lg bg-[var(--surface-input)] px-2 text-[0.8125rem] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus-visible:outline-none h-[var(--chrome-control-height)]"
           />
           <button
             type="button"
             onClick={actions.doReplace}
-            className="shrink-0 rounded-md px-2.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] h-[var(--chrome-control-height)]"
+            className="shrink-0 rounded-md px-2.5 text-[0.75rem] text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)] h-[var(--chrome-control-height)]"
           >
             Replace
           </button>
           <button
             type="button"
             onClick={actions.doReplaceAll}
-            className="shrink-0 rounded-md bg-[var(--accent)] px-2.5 text-[12px] font-medium text-white hover:opacity-90 h-[var(--chrome-control-height)]"
+            className="shrink-0 rounded-md bg-[var(--accent)] px-2.5 text-[0.75rem] font-medium text-white hover:opacity-90 h-[var(--chrome-control-height)]"
           >
             All
           </button>

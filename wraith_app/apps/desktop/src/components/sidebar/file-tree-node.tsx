@@ -279,7 +279,7 @@ export const FileTreeNode = memo(function FileTreeNode({
     const initialValue = entry.is_dir ? entry.name : getFileStem(entry.name);
     return (
       <div
-        className={`flex h-[32px] w-full items-center gap-1.5 overflow-hidden rounded-lg pr-2 text-[13px] leading-[1.15] ${
+        className={`flex h-[32px] w-full items-center gap-1.5 overflow-hidden rounded-lg pr-2 text-[0.8125rem] leading-[1.15] ${
           isActive ? "bg-[var(--surface-subtle)]" : ""
         }`}
         style={{ paddingLeft: depth === 0 ? 10 : depth * 12 + 6 }}
@@ -295,7 +295,7 @@ export const FileTreeNode = memo(function FileTreeNode({
           type="text"
           defaultValue={initialValue}
           aria-label={`Rename ${entry.name}`}
-          className="min-w-0 flex-1 rounded border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-1 py-px text-[13px] leading-[1.15] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          className="min-w-0 flex-1 rounded border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-1 py-px text-[0.8125rem] leading-[1.15] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
@@ -353,7 +353,7 @@ export const FileTreeNode = memo(function FileTreeNode({
         clearDropTarget();
         onDropFiles?.(event, entry);
       }}
-      className={`flex h-[32px] w-full items-center gap-1.5 overflow-hidden rounded-lg pr-2 text-left text-[13px] leading-[1.15] transition-[background-color,color,box-shadow,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
+      className={`flex h-[32px] w-full items-center gap-1.5 overflow-hidden rounded-lg pr-2 text-left text-[0.8125rem] leading-[1.15] transition-[background-color,color,box-shadow,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
         isDropTarget
           ? "bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_45%,transparent)]"
           : `${toneClassName} ${bgClassName}`

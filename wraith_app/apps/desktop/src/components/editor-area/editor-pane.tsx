@@ -38,7 +38,7 @@ export const EditorPane = memo(function EditorPane({ path, isActive }: EditorPan
           isActive ? "relative z-10 h-full" : "absolute inset-0 invisible pointer-events-none"
         }
       >
-        <div className="flex h-full items-center justify-center text-[13px] text-[var(--text-muted)]">
+        <div className="flex h-full items-center justify-center text-[0.8125rem] text-[var(--text-muted)]">
           <AsciiSpinner />
         </div>
       </div>

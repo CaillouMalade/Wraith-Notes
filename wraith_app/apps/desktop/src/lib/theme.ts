@@ -25,11 +25,19 @@ function resolveMode(preference: ThemePreference): ThemeMode {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-/** How the translucent/contrast sliders translate into CSS-var values. The CSS
- *  expects normalized inputs (`--bg-opacity` 0–1, `--contrast` 0–2), not the
- *  raw slider ranges the user manipulates, so the mapping happens here rather
- *  than as a 1:1 cssVar binding. */
+/** Theme controls that do not map 1:1 to their stored values. UI scale is
+ *  stored as a percent but CSS wants a multiplier; heading accent is a boolean
+ *  but CSS wants the active heading color. The translucent/contrast sliders also
+ *  normalize from human-friendly 0–100 ranges into CSS inputs. */
 const DERIVED_PRIMARIES: Partial<Record<PrimarySuffix, (v: unknown) => [string, string]>> = {
+  "ui-scale": (v) => {
+    const percent = clamp(Number(v) || 100, 85, 115);
+    return ["--wraith-ui-scale", String(percent / 100)];
+  },
+  "heading-accent": (v) => [
+    "--writer-heading-color",
+    v === true ? "var(--accent)" : "var(--text-primary)",
+  ],
   translucent: (v) => {
     const t = clamp(Number(v) || 0, 0, 100);
     return ["--bg-opacity", String(1 - (t / 100) * 0.95)];
@@ -56,6 +64,21 @@ function formatCssValue(value: unknown, format: SettingDef["cssFormat"]): string
   return format === "px" ? `${str}px` : str;
 }
 
+function valueForPrimary(mode: ThemeMode, def: SettingDef, settings: Record<string, unknown>): unknown {
+  const value = settings[def.key];
+  if (value !== undefined && value !== null) return value;
+
+  // Existing configs may only have the historical global editor font-size. Use
+  // it as the first-run fallback for the new per-mode theme token so upgrades
+  // do not visually reset the editor before the user saves a theme preset.
+  if (suffixOf(mode, def.key) === "editor-font-size") {
+    const legacyEditorSize = settings["editor.font-size"];
+    if (typeof legacyEditorSize === "number") return legacyEditorSize;
+  }
+
+  return def.default;
+}
+
 /** Push the active mode's primaries onto :root. Direct 1:1 bindings come
  *  from each schema entry's `cssVar`; derived tokens (translucent → bg-opacity,
  *  contrast → /100) are mapped explicitly via `DERIVED_PRIMARIES`. */
@@ -63,9 +86,10 @@ function applyPrimaries(mode: ThemeMode, settings: Record<string, unknown>) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   for (const def of getPrimaryDefs(mode)) {
-    const value = settings[def.key];
+    const suffix = suffixOf(mode, def.key);
+    const value = valueForPrimary(mode, def, settings);
     if (value === undefined || value === null) continue;
-    const derive = DERIVED_PRIMARIES[suffixOf(mode, def.key)];
+    const derive = DERIVED_PRIMARIES[suffix];
     if (derive) {
       const [varName, formatted] = derive(value);
       root.style.setProperty(varName, formatted);
@@ -87,6 +111,10 @@ export function applyCssVarBindings(settings: Record<string, unknown>) {
   for (const def of SETTINGS_SCHEMA) {
     if (!def.cssVar) continue;
     if (def.key.startsWith("theme.")) continue;
+    // The V3 polished theme builder owns editor font size per light/dark mode.
+    // Keep the historical `editor.font-size` setting in the schema for config
+    // compatibility, but do not let it overwrite the active theme token.
+    if (def.key === "editor.font-size") continue;
     const value = settings[def.key];
     if (value === undefined || value === null) continue;
     const formatted = formatCssValue(value, def.cssFormat);

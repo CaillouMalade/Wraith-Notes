@@ -65,7 +65,7 @@ function EditorTabButton({
         event.preventDefault();
         onContextMenu(event, tab);
       }}
-      className={` group relative flex h-[var(--chrome-control-height)] max-w-[180px] shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] px-3.5 text-[13px] leading-[1.15] select-none transition-[background-color,color,box-shadow,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-playful-ease)] hover:-translate-y-px active:translate-y-0 ${
+      className={` group relative flex h-[var(--chrome-control-height)] max-w-[180px] shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] px-3.5 text-[0.8125rem] leading-[1.15] select-none transition-[background-color,color,box-shadow,transform] duration-[var(--motion-quick-duration)] ease-[var(--motion-playful-ease)] hover:-translate-y-px active:translate-y-0 ${
         isActive
           ? "bg-[var(--tab-active-bg)] text-[var(--text-secondary)] shadow-[0_1px_0_color-mix(in_srgb,var(--fg-base)_calc(var(--contrast)*12%),transparent)] backdrop-blur-2xl"
           : "bg-transparent text-[var(--text-muted)] hover:bg-[var(--tab-active-bg)] hover:text-[var(--text-secondary)] hover:backdrop-blur-2xl"
@@ -93,7 +93,7 @@ function EditorTabButton({
             event.stopPropagation();
             onClose(tab.id);
           }}
-          className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[13px] leading-none text-[var(--text-icon-muted)] hover:text-[var(--text-secondary)]"
+          className="pointer-events-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.8125rem] leading-none text-[var(--text-icon-muted)] hover:text-[var(--text-secondary)]"
           aria-label={`Close ${title}`}
         >
           ×

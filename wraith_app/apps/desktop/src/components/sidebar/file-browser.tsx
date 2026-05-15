@@ -10,7 +10,7 @@ export function FileBrowser() {
   const openCommandPalette = useOpenCommandPalette();
 
   if (!root) {
-    return <div className="p-4 text-[13px] text-[var(--text-muted)]">No folder open</div>;
+    return <div className="p-4 text-[0.8125rem] text-[var(--text-muted)]">No folder open</div>;
   }
 
   return (
@@ -25,7 +25,7 @@ export function FileBrowser() {
         <button
           type="button"
           onClick={() => openCommandPalette()}
-          className="relative flex w-full items-center rounded-lg border border-transparent bg-[var(--surface-input)] pl-[34px] pr-3 text-[13px] text-[var(--text-muted)] h-[var(--chrome-control-height)]"
+          className="relative flex w-full items-center rounded-lg border border-transparent bg-[var(--surface-input)] pl-[34px] pr-3 text-[0.8125rem] text-[var(--text-muted)] h-[var(--chrome-control-height)]"
         >
           <span
             aria-hidden="true"
@@ -34,7 +34,7 @@ export function FileBrowser() {
             <HugeiconsIcon icon={Search01Icon} size={16} color="currentColor" strokeWidth={2} />
           </span>
           Search
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[var(--text-muted)]">
+          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.6875rem] text-[var(--text-muted)]">
             ⌘<span className="ml-0.5">P</span>
           </kbd>
         </button>

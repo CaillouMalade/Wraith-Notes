@@ -271,7 +271,7 @@ export function CommandPalette() {
                   <CommandItem key={c.id} value={c.id} onSelect={c.run}>
                     <div className="flex flex-col">
                       <span>{c.label}</span>
-                      <span className="text-[13px] text-text-muted">{c.description}</span>
+                      <span className="text-[0.8125rem] text-text-muted">{c.description}</span>
                     </div>
                   </CommandItem>
                 ))}
@@ -280,7 +280,7 @@ export function CommandPalette() {
                   <CommandItem key={r.path} value={r.path} onSelect={() => handleSelect(r)}>
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate">{getFileName(r.path)}</span>
-                      <span className="truncate text-[13px] text-text-muted">
+                      <span className="truncate text-[0.8125rem] text-text-muted">
                         {resultDescription(r)} - {renderHighlightedPath(r.relative_path, r.match_indices)}
                       </span>
                     </div>

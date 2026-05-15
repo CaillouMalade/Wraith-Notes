@@ -124,6 +124,17 @@
       "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
     },
     {
+      "key": "theme.light.ui-scale",
+      "label": "UI Scale",
+      "description": "Light theme chrome scale in percent. Tightens or loosens the app without changing editor text size.",
+      "category": "Theme",
+      "type": "range",
+      "min": 85,
+      "max": 115,
+      "step": 1,
+      "default": 100
+    },
+    {
       "key": "theme.light.editor-font",
       "label": "Editor font",
       "description": "Light theme editor body font stack",
@@ -131,6 +142,36 @@
       "type": "string",
       "cssVar": "--editor-font",
       "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+    },
+    {
+      "key": "theme.light.editor-font-size",
+      "label": "Editor font size",
+      "description": "Light theme editor body size in pixels.",
+      "category": "Theme",
+      "type": "range",
+      "min": 13,
+      "max": 24,
+      "step": 1,
+      "cssVar": "--writer-editor-font-size",
+      "cssFormat": "px",
+      "default": 16
+    },
+    {
+      "key": "theme.light.heading-font",
+      "label": "Heading font",
+      "description": "Light theme heading font stack. Defaults to the editor font.",
+      "category": "Theme",
+      "type": "string",
+      "cssVar": "--writer-heading-font-family",
+      "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+    },
+    {
+      "key": "theme.light.heading-accent",
+      "label": "Accent headings",
+      "description": "Use the accent color for editor headings in light mode.",
+      "category": "Theme",
+      "type": "boolean",
+      "default": false
     },
     {
       "key": "theme.light.translucent",
@@ -208,6 +249,17 @@
       "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
     },
     {
+      "key": "theme.dark.ui-scale",
+      "label": "UI Scale",
+      "description": "Dark theme chrome scale in percent. Tightens or loosens the app without changing editor text size.",
+      "category": "Theme",
+      "type": "range",
+      "min": 85,
+      "max": 115,
+      "step": 1,
+      "default": 100
+    },
+    {
       "key": "theme.dark.editor-font",
       "label": "Editor font",
       "description": "Dark theme editor body font stack",
@@ -215,6 +267,36 @@
       "type": "string",
       "cssVar": "--editor-font",
       "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+    },
+    {
+      "key": "theme.dark.editor-font-size",
+      "label": "Editor font size",
+      "description": "Dark theme editor body size in pixels.",
+      "category": "Theme",
+      "type": "range",
+      "min": 13,
+      "max": 24,
+      "step": 1,
+      "cssVar": "--writer-editor-font-size",
+      "cssFormat": "px",
+      "default": 16
+    },
+    {
+      "key": "theme.dark.heading-font",
+      "label": "Heading font",
+      "description": "Dark theme heading font stack. Defaults to the editor font.",
+      "category": "Theme",
+      "type": "string",
+      "cssVar": "--writer-heading-font-family",
+      "default": "-apple-system-body, ui-sans-serif, -apple-system, system-ui, \"Segoe UI\", Helvetica, \"Apple Color Emoji\", Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+    },
+    {
+      "key": "theme.dark.heading-accent",
+      "label": "Accent headings",
+      "description": "Use the accent color for editor headings in dark mode.",
+      "category": "Theme",
+      "type": "boolean",
+      "default": false
     },
     {
       "key": "theme.dark.translucent",

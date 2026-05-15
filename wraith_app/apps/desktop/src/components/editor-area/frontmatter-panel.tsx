@@ -79,12 +79,12 @@ function FrontmatterRow({
         autoFocus={isPlaceholder}
         placeholder="key"
         spellCheck={false}
-        className="w-36 shrink-0 bg-transparent text-[13px] leading-[1.15] text-[var(--text-muted)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
+        className="w-36 shrink-0 bg-transparent text-[0.8125rem] leading-[1.15] text-[var(--text-muted)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
       />
 
       <div className="relative min-w-0 flex-1">
         {showValueLinks && (
-          <div className="pointer-events-none absolute inset-0 flex min-w-0 items-center gap-1 overflow-hidden text-[13px] leading-[1.15] text-[var(--text-primary)]">
+          <div className="pointer-events-none absolute inset-0 flex min-w-0 items-center gap-1 overflow-hidden text-[0.8125rem] leading-[1.15] text-[var(--text-primary)]">
             {valueParts.map((part, partIndex) =>
               part.kind === "text" ? (
                 <span key={partIndex} className="whitespace-pre">
@@ -94,7 +94,7 @@ function FrontmatterRow({
                 <button
                   key={partIndex}
                   type="button"
-                  className="pointer-events-auto max-w-[12rem] truncate rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[12px] text-[var(--accent)] hover:bg-[var(--surface-selected)]"
+                  className="pointer-events-auto max-w-[12rem] truncate rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[0.75rem] text-[var(--accent)] hover:bg-[var(--surface-selected)]"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     void followFrontmatterLink(part.raw);
@@ -116,7 +116,7 @@ function FrontmatterRow({
           onBlur={handleBlur}
           placeholder="value"
           spellCheck={false}
-          className={`min-w-0 flex-1 bg-transparent text-[13px] leading-[1.15] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70 ${showValueLinks ? "opacity-0" : ""}`}
+          className={`min-w-0 flex-1 bg-transparent text-[0.8125rem] leading-[1.15] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70 ${showValueLinks ? "opacity-0" : ""}`}
         />
       </div>
 
@@ -168,10 +168,10 @@ export function FrontmatterPanel({ filePath }: FrontmatterPanelProps) {
 
   return (
     <div ref={containerRef} data-frontmatter className="space-y-2 pb-6">
-      <div className="-mx-3 flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[13px] text-[var(--text-muted)]">
+      <div className="-mx-3 flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[0.8125rem] text-[var(--text-muted)]">
         <div className="flex min-w-0 items-center gap-2">
           <span className="font-medium text-[var(--text-secondary)]">Properties</span>
-          <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] text-[var(--text-muted)]">
+          <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[0.6875rem] text-[var(--text-muted)]">
             {propertyCount}
           </span>
         </div>
@@ -211,7 +211,7 @@ export function FrontmatterPanel({ filePath }: FrontmatterPanelProps) {
             <button
               type="button"
               onClick={addEntry}
-              className="flex items-center gap-1 text-[13px] leading-[1.15] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+              className="flex items-center gap-1 text-[0.8125rem] leading-[1.15] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path

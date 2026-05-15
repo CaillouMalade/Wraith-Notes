@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-15
+
+- Finish the V3 polished theme builder slice: Light and Dark theme cards now expose UI Scale, per-mode editor font size, heading font, and accent-heading controls; saved mode-specific presets capture and restore those fields; built-in theme JSON includes deterministic defaults; and active theme application pushes UI scale plus heading typography/color through CSS variables while preserving the legacy `editor.font-size` setting for compatibility.
+
 ## 2026-05-11
 
 - Fix folder-tree New Folder creation: empty non-hidden, non-ignored directories now stay visible in `read_directory`, so a newly created folder appears immediately and can enter inline rename mode instead of vanishing because it contains no Markdown/image/PDF files yet.

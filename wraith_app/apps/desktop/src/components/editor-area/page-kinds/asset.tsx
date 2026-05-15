@@ -63,7 +63,7 @@ function AssetViewer({ location }: { location: AssetLocation; isActive: boolean 
 
   return (
     <div
-      className="relative z-0 box-border flex h-full min-h-0 flex-col overflow-hidden text-[13px] text-[var(--text-secondary)]"
+      className="relative z-0 box-border flex h-full min-h-0 flex-col overflow-hidden text-[0.8125rem] text-[var(--text-secondary)]"
       style={{
         paddingTop: "calc(var(--chrome-control-height) + var(--chrome-control-padding) * 2)",
       }}
@@ -76,8 +76,8 @@ function AssetViewer({ location }: { location: AssetLocation; isActive: boolean 
           strokeWidth={2}
         />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium text-[var(--text-secondary)]">{name}</div>
-          <div className="truncate text-[12px] text-[var(--text-muted)]">{relativePath}</div>
+          <div className="truncate text-[0.8125rem] font-medium text-[var(--text-secondary)]">{name}</div>
+          <div className="truncate text-[0.75rem] text-[var(--text-muted)]">{relativePath}</div>
         </div>
         {location.fileKind === "image" ? (
           <div className="flex shrink-0 items-center gap-1">
@@ -101,7 +101,7 @@ function AssetViewer({ location }: { location: AssetLocation; isActive: boolean 
             >
               <HugeiconsIcon icon={ZoomOutAreaIcon} size={15} color="currentColor" strokeWidth={2} />
             </AssetIconButton>
-            <span className="w-10 text-center text-[12px] text-[var(--text-muted)]">
+            <span className="w-10 text-center text-[0.75rem] text-[var(--text-muted)]">
               {imageScaleLabel}
             </span>
             <AssetIconButton
@@ -136,7 +136,7 @@ function AssetViewer({ location }: { location: AssetLocation; isActive: boolean 
       {location.fileKind === "image" ? (
         <div className="min-h-0 flex-1 overflow-auto p-6">
           {imageFailed ? (
-            <div className="flex h-full items-center justify-center text-[13px] text-[var(--text-muted)]">
+            <div className="flex h-full items-center justify-center text-[0.8125rem] text-[var(--text-muted)]">
               Could not load preview.
             </div>
           ) : (
@@ -170,7 +170,7 @@ function AssetViewer({ location }: { location: AssetLocation; isActive: boolean 
                 <div className="text-[15px] font-semibold text-[var(--text-secondary)]">
                   PDF preview failed
                 </div>
-                <div className="mt-1 max-w-md text-[13px] leading-6 text-[var(--text-muted)]">
+                <div className="mt-1 max-w-md text-[0.8125rem] leading-6 text-[var(--text-muted)]">
                   Wraith could not render this PDF in the preview.
                 </div>
               </div>

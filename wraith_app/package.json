@@ -8,6 +8,7 @@
     "dev": "vp run desktop#dev",
     "app:dev": "pnpm --filter desktop run tauri:dev",
     "app:build": "pnpm --filter desktop run tauri:build",
+    "validate:theme-builder": "node scripts/validate-theme-builder.mjs",
     "distribute": "./scripts/distribute.sh"
   },
   "devDependencies": {

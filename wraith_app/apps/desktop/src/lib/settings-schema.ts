@@ -74,14 +74,18 @@ export type PrimarySuffix =
   | "background"
   | "foreground"
   | "ui-font"
+  | "ui-scale"
   | "editor-font"
+  | "editor-font-size"
+  | "heading-font"
+  | "heading-accent"
   | "translucent"
   | "contrast";
 
 /** A flat record keyed by the kebab-case suffix of `theme.{mode}.{suffix}`.
  *  Mirrors the JSON schema names so iteration code uses the same key as the
  *  schema entry without any mapping. */
-export type PrimarySet = Record<PrimarySuffix, string | number>;
+export type PrimarySet = Record<PrimarySuffix, string | number | boolean>;
 
 const PRIMARY_PREFIX = (mode: ThemeMode) => `theme.${mode}.`;
 
@@ -109,20 +113,24 @@ export function suffixOf(mode: ThemeMode, key: string): PrimarySuffix {
   return key.slice(PRIMARY_PREFIX(mode).length) as PrimarySuffix;
 }
 
-function clampNumber(value: unknown, max: number): number {
+function clampNumber(value: unknown, min: number, max: number, fallback = min): number {
   const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(max, n));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
 }
 
 function isNumericType(def: SettingDef): boolean {
   return def.type === "number" || def.type === "range";
 }
 
-function readPrimaryValue(def: SettingDef, settings: Record<string, unknown>): string | number {
+function readPrimaryValue(def: SettingDef, settings: Record<string, unknown>): string | number | boolean {
   const v = settings[def.key];
   if (isNumericType(def)) {
-    return clampNumber(v, def.max ?? Number.POSITIVE_INFINITY);
+    const fallback = typeof def.default === "number" ? def.default : (def.min ?? 0);
+    return clampNumber(v, def.min ?? 0, def.max ?? Number.POSITIVE_INFINITY, fallback);
+  }
+  if (def.type === "boolean") {
+    return typeof v === "boolean" ? v : (def.default as boolean);
   }
   return typeof v === "string" ? v : (def.default as string);
 }
@@ -192,7 +200,7 @@ export type PresetName = string;
 
 export const PRESET_NAMES: PresetName[] = Object.keys(THEME_PRESETS);
 
-function valuesEqual(a: string | number, b: string | number): boolean {
+function valuesEqual(a: string | number | boolean, b: string | number | boolean): boolean {
   if (typeof a === "string" && typeof b === "string") return a.toLowerCase() === b.toLowerCase();
   return a === b;
 }

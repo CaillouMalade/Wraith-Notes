@@ -302,7 +302,7 @@ function EditorArea() {
             splitDropPane === "left" ? "left-0 right-1/2" : "left-1/2 right-0"
           }`}
         >
-          <div className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[13px] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_22%,transparent)] backdrop-blur-sm">
+          <div className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[0.8125rem] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_22%,transparent)] backdrop-blur-sm">
             Open in {splitDropPane} split
           </div>
         </div>

@@ -19,6 +19,18 @@ type SavedThemePreset = {
   values: PrimarySet;
 };
 
+type ThemeGroup = {
+  title: string;
+  suffixes: PrimarySuffix[];
+};
+
+const THEME_GROUPS: ThemeGroup[] = [
+  { title: "Colors", suffixes: ["accent", "background", "foreground"] },
+  { title: "UI", suffixes: ["ui-font", "ui-scale"] },
+  { title: "Editor", suffixes: ["editor-font", "editor-font-size", "heading-font", "heading-accent"] },
+  { title: "Material", suffixes: ["translucent", "contrast"] },
+];
+
 function parseSavedPresets(value: unknown): SavedThemePreset[] {
   if (!Array.isArray(value)) return [];
   const presets: SavedThemePreset[] = [];
@@ -54,6 +66,14 @@ function ThemeCard({ mode }: { mode: ThemeMode }) {
   const setSetting = useSetSetting();
 
   const primaryDefs = useMemo(() => getPrimaryDefs(mode), [mode]);
+  const groupedPrimaryDefs = useMemo(
+    () =>
+      THEME_GROUPS.map((group) => ({
+        ...group,
+        defs: primaryDefs.filter((def) => group.suffixes.includes(suffixOf(mode, def.key) as PrimarySuffix)),
+      })).filter((group) => group.defs.length > 0),
+    [mode, primaryDefs],
+  );
   const savedPresets = useMemo(
     () => parseSavedPresets(settings[savedPresetsKey(mode)]),
     [mode, settings],
@@ -128,14 +148,14 @@ function ThemeCard({ mode }: { mode: ThemeMode }) {
 
   return (
     <section className="mb-10">
-      <h2 className="mb-3 text-[13px] font-medium text-[var(--text-muted)]">
+      <h2 className="mb-3 text-[0.8125rem] font-medium text-[var(--text-muted)]">
         {mode === "light" ? "Light Theme" : "Dark Theme"}
       </h2>
       <div className="-mx-4 overflow-hidden rounded-2xl border border-[var(--line-subtler)] bg-[var(--surface-card)]">
         <div className="flex items-start justify-between gap-4 px-4 py-3.5">
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium text-[var(--text-primary)]">Preset</div>
-            <div className="mt-0.5 text-[13px] text-[var(--text-muted)]">
+            <div className="text-[0.8125rem] font-medium text-[var(--text-primary)]">Preset</div>
+            <div className="mt-0.5 text-[0.8125rem] text-[var(--text-muted)]">
               Save and recall this mode's current theme settings.
             </div>
           </div>
@@ -143,7 +163,7 @@ function ThemeCard({ mode }: { mode: ThemeMode }) {
             <select
               value={selectedPresetValue}
               onChange={(event) => void handlePresetChange(event.target.value)}
-              className="h-9 min-w-[160px] appearance-none rounded-lg border border-transparent bg-[var(--surface-input)] bg-[length:12px_12px] bg-[position:right_10px_center] bg-no-repeat pl-3 pr-8 text-[13px] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none bg-[image:var(--select-chevron)]"
+              className="h-9 min-w-[160px] appearance-none rounded-lg border border-transparent bg-[var(--surface-input)] bg-[length:12px_12px] bg-[position:right_10px_center] bg-no-repeat pl-3 pr-8 text-[0.8125rem] text-[var(--text-secondary)] font-[inherit] outline-none focus:border-[var(--focus-border)] focus-visible:outline-none bg-[image:var(--select-chevron)]"
             >
               <option value="custom">Custom</option>
               {PRESET_NAMES.map((name) => (
@@ -160,7 +180,7 @@ function ThemeCard({ mode }: { mode: ThemeMode }) {
             <button
               type="button"
               onClick={() => void saveCurrentPreset()}
-              className="h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[13px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-selected)]"
+              className="h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-selected)]"
             >
               Save
             </button>
@@ -168,34 +188,38 @@ function ThemeCard({ mode }: { mode: ThemeMode }) {
               type="button"
               onClick={() => void deleteCurrentPreset()}
               disabled={!selectedPresetValue.startsWith("saved:")}
-              className="h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[13px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-selected)] disabled:opacity-40"
+              className="h-9 rounded-lg border border-transparent bg-[var(--surface-input)] px-3 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-selected)] disabled:opacity-40"
             >
               Delete
             </button>
           </div>
         </div>
-        {primaryDefs.map((def) => {
-          const suffix = suffixOf(mode, def.key) as PrimarySuffix;
-          const value = settings[def.key];
-          const isModified = JSON.stringify(value) !== JSON.stringify(def.default);
-          return (
-            <div
-              key={def.key}
-              className="border-t border-[var(--line-subtler)]"
-            >
-              <SettingControl
-                def={def}
-                value={value}
-                onChange={(v) => {
-                  void setSetting(`theme.${mode}.${suffix}`, v);
-                  void setSetting(presetKey(mode), "Custom");
-                }}
-                onReset={() => void setSetting(def.key, def.default)}
-                isModified={isModified}
-              />
+        {groupedPrimaryDefs.map((group) => (
+          <div key={group.title}>
+            <div className="border-t border-[var(--line-subtler)] px-4 pt-3 pb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              {group.title}
             </div>
-          );
-        })}
+            {group.defs.map((def) => {
+              const suffix = suffixOf(mode, def.key) as PrimarySuffix;
+              const value = settings[def.key] ?? def.default;
+              const isModified = JSON.stringify(value) !== JSON.stringify(def.default);
+              return (
+                <div key={def.key} className="border-t border-[var(--line-subtler)]">
+                  <SettingControl
+                    def={def}
+                    value={value}
+                    onChange={(v) => {
+                      void setSetting(`theme.${mode}.${suffix}`, v);
+                      void setSetting(presetKey(mode), "Custom");
+                    }}
+                    onReset={() => void setSetting(def.key, def.default)}
+                    isModified={isModified}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </section>
   );

@@ -239,7 +239,7 @@ function OutputBlock({ output }: { output: tauri.CommandOutput | null }) {
   if (!output) return null;
   const text = [output.stdout, output.stderr].filter(Boolean).join("\n").trim();
   return (
-    <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-3 font-mono text-[12px] leading-relaxed text-[var(--text-secondary)]">
+    <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-3 font-mono text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
       {text || `Exited with status ${output.status}`}
     </pre>
   );
@@ -576,11 +576,11 @@ function AgentMessageBody({ message, isWaiting }: { message: AgentMessage; isWai
               key={action.id}
               className="rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-2 py-1.5"
             >
-              <summary className="cursor-default text-[12px] text-[var(--text-muted)]">
+              <summary className="cursor-default text-[0.75rem] text-[var(--text-muted)]">
                 {action.status === "running" ? "Running" : "Done"} · {action.label}
               </summary>
               {(action.input || action.output) && (
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text-secondary)]">
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.6875rem] text-[var(--text-secondary)]">
                   {[action.input, action.output].filter(Boolean).join("\n\n")}
                 </pre>
               )}
@@ -590,10 +590,10 @@ function AgentMessageBody({ message, isWaiting }: { message: AgentMessage; isWai
       )}
       {message.rawOutput && (
         <details className="rounded-md border border-[var(--line-subtler)] px-2 py-1.5">
-          <summary className="cursor-default text-[12px] text-[var(--text-muted)]">
+          <summary className="cursor-default text-[0.75rem] text-[var(--text-muted)]">
             Raw output
           </summary>
-          <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-[var(--text-secondary)]">
+          <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap font-mono text-[0.6875rem] text-[var(--text-secondary)]">
             {message.rawOutput}
           </pre>
         </details>
@@ -805,7 +805,7 @@ function AgentPanel() {
           <button
             type="button"
             onClick={() => editorApi.openSettingsTab()}
-            className="h-7 w-full rounded-[5px] text-[13px] text-[var(--text-muted)] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
+            className="h-7 w-full rounded-[5px] text-[0.8125rem] text-[var(--text-muted)] hover:bg-[var(--surface-selected)] hover:text-[var(--text-secondary)]"
           >
             Configure agents
           </button>
@@ -815,7 +815,7 @@ function AgentPanel() {
               key={profile.id}
               type="button"
               onClick={() => setSelectedProfileId(profile.id)}
-              className={`h-7 min-w-0 flex-1 rounded-[5px] px-2 text-[13px] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
+              className={`h-7 min-w-0 flex-1 rounded-[5px] px-2 text-[0.8125rem] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
                 selectedProfile?.id === profile.id
                   ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -832,7 +832,7 @@ function AgentPanel() {
             key={mode}
             type="button"
             onClick={() => void setSetting("agents.permission-mode", mode)}
-            className={`h-7 rounded-[5px] px-2 text-[12px] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
+            className={`h-7 rounded-[5px] px-2 text-[0.75rem] transition-[background-color,color] duration-[var(--motion-quick-duration)] ease-[var(--motion-soft-ease)] ${
               permissionMode === mode
                 ? "bg-[var(--surface-selected)] text-[var(--text-secondary)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -844,17 +844,17 @@ function AgentPanel() {
       </div>
       {selectedProfile && (
         <div className="min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] px-3 py-2">
-          <div className="truncate font-mono text-[12px] text-[var(--text-secondary)]">
+          <div className="truncate font-mono text-[0.75rem] text-[var(--text-secondary)]">
             {selectedCommand.command}
           </div>
-          <div className="mt-1 truncate text-[12px] text-[var(--text-muted)]">
+          <div className="mt-1 truncate text-[0.75rem] text-[var(--text-muted)]">
             {selectedProfile.workingDirectory.trim() || "vault root"}
           </div>
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--line-subtler)] bg-[var(--surface-subtle)] p-2">
         {messages.length === 0 ? (
-          <div className="px-1 py-1 text-[13px] text-[var(--text-muted)]">
+          <div className="px-1 py-1 text-[0.8125rem] text-[var(--text-muted)]">
             {selectedProfile
               ? `Ask ${selectedProfile.name} about this vault.`
               : "Configure an enabled agent in Preferences."}
@@ -874,7 +874,7 @@ function AgentPanel() {
                       }
                     : undefined
                 }
-                className={`rounded-md px-3 py-2 text-[13px] leading-relaxed ${
+                className={`rounded-md px-3 py-2 text-[0.8125rem] leading-relaxed ${
                   message.role === "user"
                     ? "border text-[var(--text-primary)]"
                     : message.role === "assistant"
@@ -883,7 +883,7 @@ function AgentPanel() {
                 }`}
               >
                 <div
-                  className={`mb-1 text-[11px] uppercase ${
+                  className={`mb-1 text-[0.6875rem] uppercase ${
                     message.role === "user"
                       ? "text-[var(--accent)]"
                       : "text-[var(--text-muted)]"
@@ -914,7 +914,7 @@ function AgentPanel() {
           }
         }}
         placeholder="Ask the workspace agent..."
-        className="min-h-24 resize-none rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-3 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--focus-border)]"
+        className="min-h-24 resize-none rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-3 text-[0.8125rem] text-[var(--text-primary)] outline-none focus:border-[var(--focus-border)]"
       />
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <button
@@ -1105,7 +1105,7 @@ function TerminalPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1 truncate text-[12px] text-[var(--text-muted)]">
+        <div className="min-w-0 flex-1 truncate text-[0.75rem] text-[var(--text-muted)]">
           {session ? session.cwd : error ?? "Starting shell..."}
         </div>
         <PanelIconButton label="Restart terminal" onClick={() => void startTerminal()} disabled={isStarting}>
@@ -1259,7 +1259,7 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
             value={address}
             onChange={(event) => setAddress(event.target.value)}
             spellCheck={false}
-            className="h-8 min-w-0 flex-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-2 text-[12px] text-[var(--text-secondary)] outline-none focus:border-[var(--focus-border)]"
+            className="h-8 min-w-0 flex-1 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-2 text-[0.75rem] text-[var(--text-secondary)] outline-none focus:border-[var(--focus-border)]"
           />
           <button
             type="submit"
@@ -1273,7 +1273,7 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
       </div>
       {(title || error) && (
         <div
-          className={`truncate text-[12px] ${error ? "text-red-500" : "text-[var(--text-muted)]"}`}
+          className={`truncate text-[0.75rem] ${error ? "text-red-500" : "text-[var(--text-muted)]"}`}
           title={error ?? title ?? undefined}
         >
           {error ?? title}
@@ -1284,7 +1284,7 @@ function BrowserPanel({ isActive }: { isActive: boolean }) {
         className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--line-subtler)] bg-[var(--surface-card)]"
       >
         {!shouldShow && (
-          <div className="absolute inset-0 flex items-center justify-center text-[13px] text-[var(--text-muted)]">
+          <div className="absolute inset-0 flex items-center justify-center text-[0.8125rem] text-[var(--text-muted)]">
             Browser paused
           </div>
         )}
@@ -1577,10 +1577,10 @@ function GitPanel({ isActive }: { isActive: boolean }) {
               style={gitStateDotStyle("error")}
             />
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-[var(--text-secondary)]">
+              <div className="text-[0.8125rem] font-medium text-[var(--text-secondary)]">
                 No Git repository
               </div>
-              <div className="text-[12px] text-[var(--text-muted)]">
+              <div className="text-[0.75rem] text-[var(--text-muted)]">
                 Initialize this vault to enable commits, diffs, and sync.
               </div>
             </div>
@@ -1609,10 +1609,10 @@ function GitPanel({ isActive }: { isActive: boolean }) {
             style={gitStateDotStyle(summary.tone)}
           />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium text-[var(--text-secondary)]">
+            <div className="truncate text-[0.8125rem] font-medium text-[var(--text-secondary)]">
               {summary.label}
             </div>
-            <div className="truncate text-[12px] text-[var(--text-muted)]">
+            <div className="truncate text-[0.75rem] text-[var(--text-muted)]">
               {status
                 ? `${status.branch}${status.upstream ? ` -> ${status.upstream}` : remotes.length > 0 ? " (no upstream)" : " (no remote)"} · ${formatCheckedAt(lastStatusAt)}`
                 : commandText(statusOutput) || "Loading status..."}
@@ -1627,7 +1627,7 @@ function GitPanel({ isActive }: { isActive: boolean }) {
             {remotes.map((remote) => (
               <div
                 key={remote.name}
-                className="grid grid-cols-[64px_minmax(0,1fr)] gap-2 text-[12px]"
+                className="grid grid-cols-[64px_minmax(0,1fr)] gap-2 text-[0.75rem]"
               >
                 <span className="text-[var(--text-muted)]">{remote.name}</span>
                 <span className="truncate font-mono text-[var(--text-secondary)]">{remote.url}</span>
@@ -1636,7 +1636,7 @@ function GitPanel({ isActive }: { isActive: boolean }) {
           </div>
         )}
         {hasConflicts && (
-          <div className="mt-3 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-2 text-[12px] text-[var(--text-secondary)]">
+          <div className="mt-3 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-2 text-[0.75rem] text-[var(--text-secondary)]">
             <div className="flex items-center gap-2 text-[var(--accent)]">
               <HugeiconsIcon icon={AlertCircleIcon} size={14} color="currentColor" strokeWidth={2} />
               <span>
@@ -1666,18 +1666,18 @@ function GitPanel({ isActive }: { isActive: boolean }) {
         )}
         {status ? (
           <div className="mt-3 max-h-44 overflow-auto rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] p-1">
-            <div className="flex items-center justify-between px-2 py-1.5 text-[12px]">
+            <div className="flex items-center justify-between px-2 py-1.5 text-[0.75rem]">
               <span className="font-medium text-[var(--text-secondary)]">{gitChangeListTitle(status)}</span>
               <span className="text-[var(--text-muted)]">{formatCheckedAt(lastStatusAt)}</span>
             </div>
             {status.files.length === 0 ? (
-              <div className="px-2 pb-2 text-[13px] text-[var(--text-muted)]">Working tree clean</div>
+              <div className="px-2 pb-2 text-[0.8125rem] text-[var(--text-muted)]">Working tree clean</div>
             ) : (
               <div className="border-t border-[var(--line-subtler)] pt-1">
                 {status.files.map((file) => (
                   <div
                     key={`${file.code}-${file.path}`}
-                    className={`grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded px-2 py-1.5 text-[12px] ${
+                    className={`grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded px-2 py-1.5 text-[0.75rem] ${
                       selectedFile?.path === file.path ? "bg-[var(--surface-selected)]" : ""
                     }`}
                     onMouseDown={() => setSelectedFile(file)}
@@ -1710,13 +1710,13 @@ function GitPanel({ isActive }: { isActive: boolean }) {
             value={remoteName}
             onChange={(event) => setRemoteName(event.target.value)}
             placeholder="origin"
-            className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+            className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[0.8125rem] outline-none focus:border-[var(--focus-border)]"
           />
           <input
             value={remoteUrl}
             onChange={(event) => setRemoteUrl(event.target.value)}
             placeholder="Remote URL"
-            className="h-8 min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+            className="h-8 min-w-0 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[0.8125rem] outline-none focus:border-[var(--focus-border)]"
           />
           <PanelIconButton
             label="Add Git remote"
@@ -1768,7 +1768,7 @@ function GitPanel({ isActive }: { isActive: boolean }) {
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         placeholder={`Commit message (${DEFAULT_GIT_COMMIT_MESSAGE})`}
-        className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[13px] outline-none focus:border-[var(--focus-border)]"
+        className="h-8 rounded-md border border-[var(--line-subtler)] bg-[var(--surface-input)] px-3 text-[0.8125rem] outline-none focus:border-[var(--focus-border)]"
       />
       <button
         className="right-sidebar-button"
@@ -1808,12 +1808,12 @@ function PropertiesPanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
       {entries.length === 0 ? (
-        <div className="text-[13px] text-[var(--text-muted)]">No properties</div>
+        <div className="text-[0.8125rem] text-[var(--text-muted)]">No properties</div>
       ) : (
         entries.map((entry, index) => (
           <div key={entry.key} className="rounded-lg bg-[var(--surface-subtle)] px-3 py-2">
-            <div className="text-[12px] text-[var(--text-muted)]">{entry.key}</div>
-            <div className="break-words text-[13px] text-[var(--text-secondary)]">
+            <div className="text-[0.75rem] text-[var(--text-muted)]">{entry.key}</div>
+            <div className="break-words text-[0.8125rem] text-[var(--text-secondary)]">
               {hasFrontmatterLinks(entry.value)
                 ? parseFrontmatterLinks(entry.value).map((part, partIndex) =>
                     part.kind === "text" ? (
@@ -1822,7 +1822,7 @@ function PropertiesPanel() {
                       <button
                         key={`${index}-${partIndex}`}
                         type="button"
-                        className="mx-0.5 max-w-full truncate rounded-md bg-[var(--surface-input)] px-1.5 py-0.5 align-baseline text-[12px] text-[var(--accent)] hover:bg-[var(--surface-selected)]"
+                        className="mx-0.5 max-w-full truncate rounded-md bg-[var(--surface-input)] px-1.5 py-0.5 align-baseline text-[0.75rem] text-[var(--accent)] hover:bg-[var(--surface-selected)]"
                         onClick={() => {
                           void followFrontmatterLink(part.raw);
                         }}
@@ -1860,7 +1860,7 @@ function OutlinePanel() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
       {headings.length === 0 ? (
-        <div className="text-[13px] text-[var(--text-muted)]">No headings</div>
+        <div className="text-[0.8125rem] text-[var(--text-muted)]">No headings</div>
       ) : (
         headings.map((heading) => (
           <button
@@ -1870,7 +1870,7 @@ function OutlinePanel() {
             onClick={() => {
               if (activePath) jumpToEditorLine(activePath, heading.index + 1);
             }}
-            className="truncate rounded-md px-2 py-1 text-left text-[13px] text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
+            className="truncate rounded-md px-2 py-1 text-left text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
             style={{ paddingLeft: 8 + (heading.depth - 1) * 12 }}
           >
             {heading.title}
